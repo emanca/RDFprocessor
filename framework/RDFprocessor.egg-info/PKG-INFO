@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: RDFprocessor
+Version: 0.0.1
+Summary: RDF-based mini-framework
+Home-page: https://github.com/emanca/RDFprocessor
+Author: Elisabetta Manca
+Author-email: elisabetta.manca@cern.ch
+License: UNKNOWN
+Description: # Example Package
+        
+        This is a simple example package. You can use
+        [Github-flavored Markdown](https://guides.github.com/features/mastering-markdown/)
+        to write your content.
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 2
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: <3.0
+Description-Content-Type: text/markdown

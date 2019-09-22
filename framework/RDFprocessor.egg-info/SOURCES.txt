@@ -1,0 +1,6 @@
+README.md
+setup.py
+RDFprocessor.egg-info/PKG-INFO
+RDFprocessor.egg-info/SOURCES.txt
+RDFprocessor.egg-info/dependency_links.txt
+RDFprocessor.egg-info/top_level.txt
