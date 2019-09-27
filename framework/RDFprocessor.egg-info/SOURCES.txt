@@ -1,4 +1,16 @@
+RDFtree.py
 README.md
+TH1weightsHelper.cpp
+TH1weightsHelper.h
+TH2weightsHelper.cpp
+TH2weightsHelper.h
+TH3weightsHelper.cpp
+TH3weightsHelper.h
+header.py
+module.cpp
+module.h
+module.py
+plotter.py
 setup.py
 RDFprocessor.egg-info/PKG-INFO
 RDFprocessor.egg-info/SOURCES.txt

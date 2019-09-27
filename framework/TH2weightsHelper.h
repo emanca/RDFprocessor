@@ -1,11 +1,11 @@
-#ifndef TH3WEIGHTSHELPER_H
-#define TH3WEIGHTSHELPER_H
+#ifndef TH2WEIGHTSHELPER_H
+#define TH2WEIGHTSHELPER_H
 
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
 
-class TH3weightsHelper : public ROOT::Detail::RDF::RActionImpl<TH3weightsHelper> {
+class TH2weightsHelper : public ROOT::Detail::RDF::RActionImpl<TH2weightsHelper> {
 
 public:
    /// This type is a requirement for every helper.

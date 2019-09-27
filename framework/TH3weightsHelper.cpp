@@ -42,7 +42,7 @@
                               std::string(_name+"_"+_weightNames[i]).c_str(), 
                               _nbinsX, _xbins.data(), 
                               _nbinsY, _ybins.data(),
-                              _nbinsY, _zbins.data()));
+                              _nbinsZ, _zbins.data()));
         h->SetDirectory(nullptr);
         histos.push_back(std::move(h));
       }
