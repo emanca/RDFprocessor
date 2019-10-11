@@ -167,32 +167,40 @@ class RDFtree:
                     
                     for h in obj:
                         obj_number =  obj_number+1
-                        print h.GetName()
+                        
                         h.Write()
                 else:
                     obj_number =  obj_number+1
                     obj.Write()
 
         
-        self.objs = {} # re-initialise object list
+        #self.objs = {} # re-initialise object list
         self.fout.Close()
         os.chdir("..")
 
         print self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start), "histograms written: ", obj_number
 
+    def getObjects(self, node):
+
+        return self.objs[node]
+
     def saveGraph(self):
+
+        print self.graph
 
         from graphviz import Digraph
 
         dot = Digraph(name='my analysis', filename = 'graph.pdf')
 
         for node, nodelist in self.graph.iteritems():
+
+            dot.node(node, node)
             for n in nodelist:
-                
-                dot.node(node, n)
+                dot.node(n, n)
+                dot.edge(node,n)
 
 
         print(dot.source)  
 
-        #dot.render(view=True)  
+        dot.render(view=True)  
 

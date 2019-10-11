@@ -9,9 +9,9 @@ class TH2weightsHelper : public ROOT::Detail::RDF::RActionImpl<TH2weightsHelper>
 
 public:
    /// This type is a requirement for every helper.
-   using Result_t = std::vector<std::unique_ptr<TH2D>>;
+   using Result_t = std::vector<TH2D>;
 private:
-   std::vector<std::shared_ptr<std::vector<std::unique_ptr<TH2D>>>> fHistos; // one per data processing slot
+   std::vector<std::shared_ptr<std::vector<TH2D>>> fHistos; // one per data processing slot
    std::string _name;
    int _nbinsX;
    std::vector<float> _xbins;
@@ -31,7 +31,7 @@ public:
 
    TH2weightsHelper(TH2weightsHelper &&) = default;
    TH2weightsHelper(const TH2weightsHelper &) = delete;
-   std::shared_ptr<std::vector<std::unique_ptr<TH2D>>> GetResultPtr() const;
+   std::shared_ptr<std::vector<TH2D>> GetResultPtr() const;
    void Initialize();
    void InitTask(TTreeReader *, unsigned int);
    /// This is a method executed at every entry

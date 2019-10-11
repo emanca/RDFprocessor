@@ -11,13 +11,13 @@ std::vector<ROOT::RDF::RResultPtr<TH3D>> Module::getTH3(){
 	return _h3List;
 }
 
-std::vector<ROOT::RDF::RResultPtr<std::vector<std::unique_ptr<TH1D>>>> Module::getGroupTH1(){ 
+std::vector<ROOT::RDF::RResultPtr<std::vector<TH1D>>> Module::getGroupTH1(){ 
   return _h1Group;
 }
-std::vector<ROOT::RDF::RResultPtr<std::vector<std::unique_ptr<TH2D>>>> Module::getGroupTH2(){ 
+std::vector<ROOT::RDF::RResultPtr<std::vector<TH2D>>> Module::getGroupTH2(){ 
   return _h2Group;
 }
-std::vector<ROOT::RDF::RResultPtr<std::vector<std::unique_ptr<TH3D>>>> Module::getGroupTH3(){ 
+std::vector<ROOT::RDF::RResultPtr<std::vector<TH3D>>> Module::getGroupTH3(){ 
   return _h3Group;
 }
 
