@@ -42,9 +42,6 @@ class RDFtree:
         self.fout.Close()
 
         os.chdir("..")
-
-        #start analysis
-        self.start = time.time()
         
     def branch(self,nodeToStart, nodeToEnd, modules=[]):
 
@@ -143,6 +140,9 @@ class RDFtree:
                     
 
     def getOutput(self):
+
+        #start analysis
+        self.start = time.time()
 
         # now write all the outputs together
 
