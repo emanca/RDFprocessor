@@ -117,7 +117,7 @@ class RDFtree:
         self.node[nodeToEnd] = branchRDF
 
 
-    def takeSnapshot(self, blist=[]):
+    def takeSnapshot(self, node, blist=[]):
 
         opts = ROOT.ROOT.RDF.RSnapshotOptions()
         opts.fLazy = True
@@ -130,13 +130,11 @@ class RDFtree:
         print time.time()-self.start, "before snapshot"
 
         if not len(blist)==0:
-            out = self.d.Snapshot(self.treeName,self.outputFile[i], branchList, opts)
+            out = self.node[node].Snapshot(self.treeName,self.outputFile, branchList, opts)
         else:
-            out = self.d.Snapshot(self.treeName,self.outputFile[i], "", opts)
-        # dummy histogram to trigger snapshot
+            out = self.node[node].Snapshot(self.treeName,self.outputFile, "", opts)
 
-        h = self.d.Define("foo", "1").Histo1D("foo")    
-        self.objs.append(ROOT.RDF.RResultPtr('TH1D')(h))
+        self.objs[self.branchDir].append(out)
                     
 
     def getOutput(self):
@@ -160,8 +158,11 @@ class RDFtree:
             
             self.fout.cd(branchDir)
             for obj in objs:
-                
-                if 'vector' in obj.__cppname__:
+
+                if not 'TH' in obj.__cppname__:
+                    obj.GetValue()
+
+                elif 'vector' in obj.__cppname__:
                     
                     print "writing group of histos "
                     
