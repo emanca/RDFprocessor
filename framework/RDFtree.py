@@ -17,7 +17,7 @@ class RDFtree:
 
             ROOT.ROOT.DisableImplicitMT()
             self.d = RDF(self.treeName, self.inputFile)
-            self.d=self.d.Range(10)
+            self.d=self.d.Range(100)
         else:
 
             self.d = RDF(self.treeName, self.inputFile)
@@ -63,7 +63,7 @@ class RDFtree:
 
         for i, m in enumerate(self.modules[lenght:]): 
 
-            branchRDF = m.run(CastToRNode(branchRDF))
+            branchRDF = m.run(ROOT.RDF.AsRNode(branchRDF))
 
                 
             tmp_th1 = m.getTH1()
@@ -127,8 +127,6 @@ class RDFtree:
         for l in blist:
             branchList.push_back(l)
 
-        print time.time()-self.start, "before snapshot"
-
         if not len(blist)==0:
             out = self.node[node].Snapshot(self.treeName,self.outputFile, branchList, opts)
         else:
@@ -149,26 +147,29 @@ class RDFtree:
         os.chdir(self.outputDir)
         self.fout = ROOT.TFile(self.outputFile, "update")
         self.fout.cd()
-    
+
         obj_number = 0
 
         for branchDir, objs in self.objs.iteritems():
 
-            if not self.fout.GetDirectory(branchDir): self.fout.mkdir(branchDir)
-            
+            if not self.fout.GetDirectory(branchDir): 
+                self.fout.mkdir(branchDir)
+
             self.fout.cd(branchDir)
+            
             for obj in objs:
-
-                if not 'TH' in obj.__cppname__:
+                
+                if not 'TH' in type(obj).__cpp_name__:
                     obj.GetValue()
-
-                elif 'vector' in obj.__cppname__:
+    
+                elif 'vector' in type(obj).__cpp_name__:
                     
                     print "writing group of histos "
                     
                     for h in obj:
                         obj_number =  obj_number+1
-                        
+                        print(h.GetName())
+        
                         h.Write()
                 else:
                     obj_number =  obj_number+1
@@ -200,8 +201,5 @@ class RDFtree:
                 dot.node(n, n)
                 dot.edge(node,n)
 
-
-        print(dot.source)  
-
-        dot.render(view=True)  
+        dot.render()  
 
