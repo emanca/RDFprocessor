@@ -65,7 +65,6 @@ class RDFtree:
 
             branchRDF = m.run(ROOT.RDF.AsRNode(branchRDF))
 
-                
             tmp_th1 = m.getTH1()
             tmp_th2 = m.getTH2()
             tmp_th3 = m.getTH3()
@@ -73,7 +72,7 @@ class RDFtree:
             tmp_th1G = m.getGroupTH1()
             tmp_th2G = m.getGroupTH2()
             tmp_th3G = m.getGroupTH3()
-                
+            tmp_thNG = m.getGroupTHN()    
 
             for obj in tmp_th1:
                     
@@ -111,6 +110,11 @@ class RDFtree:
 
                 self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
+            for obj in tmp_thNG:
+
+                value_type = getValueType(obj)
+
+                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
             m.reset()
 
