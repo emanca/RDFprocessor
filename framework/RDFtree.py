@@ -46,7 +46,8 @@ class RDFtree:
     def branch(self,nodeToStart, nodeToEnd, modules=[]):
 
         self.branchDir = nodeToEnd
-        self.objs[self.branchDir] = []
+        if not self.branchDir in self.objs:
+            self.objs[self.branchDir] = []
    
         if nodeToStart in self.graph:
             self.graph[nodeToStart].append(nodeToEnd)
