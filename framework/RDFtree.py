@@ -108,7 +108,7 @@ class RDFtree:
             for obj in tmp_th3G:
                     
                 value_type = getValueType(obj)
-
+                
                 self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
             for obj in tmp_thNG:
@@ -169,7 +169,7 @@ class RDFtree:
     
                 elif 'vector' in type(obj).__cpp_name__:
                     
-                    print "writing group of histos "
+                    print "writing group of histos in {}".format(branchDir)
                     
                     for h in obj:
                         obj_number =  obj_number+1
