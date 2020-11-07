@@ -63,7 +63,7 @@ class RDFtree:
         # modify RDF according to modules
 
         for i, m in enumerate(self.modules[lenght:]): 
-
+            
             branchRDF = m.run(ROOT.RDF.AsRNode(branchRDF))
 
             tmp_th1 = m.getTH1()
@@ -147,7 +147,7 @@ class RDFtree:
 
         # now write all the outputs together
 
-        print "Writing output files in "+ self.outputDir
+        print("Writing output files in "+ self.outputDir)
 
         os.chdir(self.outputDir)
         self.fout = ROOT.TFile(self.outputFile, "update")
@@ -155,7 +155,7 @@ class RDFtree:
 
         obj_number = 0
 
-        for branchDir, objs in self.objs.iteritems():
+        for branchDir, objs in self.objs.items():
 
             if not self.fout.GetDirectory(branchDir): 
                 self.fout.mkdir(branchDir)
@@ -169,11 +169,11 @@ class RDFtree:
     
                 elif 'vector' in type(obj).__cpp_name__:
                     
-                    print "writing group of histos in {}".format(branchDir)
+                    print("writing group of histos in {}".format(branchDir))
                     
                     for h in obj:
                         obj_number =  obj_number+1
-                        print(h.GetName())
+                        print((h.GetName()))
         
                         h.Write()
                 else:
@@ -185,21 +185,21 @@ class RDFtree:
         self.fout.Close()
         os.chdir("..")
 
-        print self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start), "histograms written: ", obj_number
+        print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start), "histograms written: ", obj_number)
 
-    def getObjects(self, node):
+    def getObjects(self):
 
-        return self.objs[node]
+        return self.objs
 
     def saveGraph(self):
 
-        print self.graph
+        print(self.graph)
 
         from graphviz import Digraph
 
         dot = Digraph(name='my analysis', filename = 'graph.pdf')
 
-        for node, nodelist in self.graph.iteritems():
+        for node, nodelist in self.graph.items():
 
             dot.node(node, node)
             for n in nodelist:

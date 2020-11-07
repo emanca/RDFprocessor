@@ -50,7 +50,7 @@ class plotter:
 
         os.chdir('..')
 
-        self.histos = zip(*self.histos) # now in the right order
+        self.histos = list(zip(*self.histos)) # now in the right order
 
     def plotStack(self):
 
@@ -82,7 +82,7 @@ class plotter:
 
         for group in self.histos: 
 
-            print (group[0])[0].GetName()
+            print((group[0])[0].GetName())
 
             hs = ROOT.THStack((group[0])[0].GetName(),"")
 
