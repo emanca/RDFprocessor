@@ -1,5 +1,8 @@
 from header import *
 import copy
+import h5py
+import numpy as np
+from root_numpy import hist2array
 
 class RDFtree:
     def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False):
@@ -157,8 +160,8 @@ class RDFtree:
 
         for branchDir, objs in self.objs.items():
 
-            if not self.fout.GetDirectory(branchDir): 
-                self.fout.mkdir(branchDir)
+            if objs==[]: continue #get rid of empty nodes
+            if not self.fout.GetDirectory(branchDir): self.fout.mkdir(branchDir)
 
             self.fout.cd(branchDir)
             
@@ -169,12 +172,8 @@ class RDFtree:
     
                 elif 'vector' in type(obj).__cpp_name__:
                     
-                    print("writing group of histos in {}".format(branchDir))
-                    
                     for h in obj:
                         obj_number =  obj_number+1
-                        print((h.GetName()))
-        
                         h.Write()
                 else:
                     obj_number =  obj_number+1
@@ -186,6 +185,27 @@ class RDFtree:
         os.chdir("..")
 
         print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start), "histograms written: ", obj_number)
+
+    def gethdf5Output(self):
+
+        with h5py.File(self.outputFile.replace('root','hdf5'), "w") as f:
+            dtype = 'float64'
+            for branchDir, objs in self.objs.items():
+                if objs == []: continue
+                for obj in objs:
+                    print(type(obj).__cpp_name__)
+                    if not 'TH' in type(obj).__cpp_name__: continue #skipping eventual TTree writing
+                    elif 'vector' in type(obj).__cpp_name__:
+                        for h in obj:
+                            nbins = h.GetNbinsX()*h.GetNbinsY() * h.GetNbinsZ()
+                            dset = f.create_dataset('{}/{}'.format(branchDir,h.GetName()), [nbins], dtype=dtype)
+                            harr = hist2array(h, include_overflow=False).ravel().astype(dtype)
+                            dset[...] = harr
+                    else:
+                        nbins = obj.GetNbinsX()*obj.GetNbinsY() * obj.GetNbinsZ()
+                        dset = f.create_dataset('{}/{}'.format(branchDir,obj.GetName()), [nbins], dtype=dtype)
+                        harr = hist2array(obj, include_overflow=False).ravel().astype(dtype)
+                        dset[...] = harr
 
     def getObjects(self):
 
