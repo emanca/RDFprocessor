@@ -2,6 +2,7 @@ from header import *
 import copy
 import h5py
 import numpy as np
+from array import array
 from root_numpy import hist2array
 
 class RDFtree:
@@ -188,12 +189,12 @@ class RDFtree:
 
     def gethdf5Output(self):
 
+        os.chdir(self.outputDir)
         with h5py.File(self.outputFile.replace('root','hdf5'), "w") as f:
             dtype = 'float64'
             for branchDir, objs in self.objs.items():
                 if objs == []: continue
                 for obj in objs:
-                    print(type(obj).__cpp_name__)
                     if not 'TH' in type(obj).__cpp_name__: continue #skipping eventual TTree writing
                     elif 'vector' in type(obj).__cpp_name__:
                         for h in obj:
@@ -201,11 +202,32 @@ class RDFtree:
                             dset = f.create_dataset('{}/{}'.format(branchDir,h.GetName()), [nbins], dtype=dtype)
                             harr = hist2array(h, include_overflow=False).ravel().astype(dtype)
                             dset[...] = harr
+                            #save sumw2
+                            if not h.GetSumw2().GetSize()>0: continue 
+                            sumw2_hist = h.Clone()
+                            dset2 = f.create_dataset('{}/{}_sumw2'.format(branchDir,h.GetName()), [nbins], dtype=dtype)
+                            sumw2f=[sumw2_hist.GetSumw2()[i] for i in range(sumw2_hist.GetSumw2().GetSize())]
+                            sumw2f = np.array(sumw2f,dtype='float64')
+                            print(h.GetName())
+                            print(type(sumw2f),sumw2f)
+                            sumw2_hist.Set(sumw2_hist.GetSumw2().GetSize(), sumw2f)
+                            sumw2arr = hist2array(sumw2_hist, include_overflow=False).ravel().astype(dtype)
+                            dset2[...] = sumw2arr
                     else:
                         nbins = obj.GetNbinsX()*obj.GetNbinsY() * obj.GetNbinsZ()
                         dset = f.create_dataset('{}/{}'.format(branchDir,obj.GetName()), [nbins], dtype=dtype)
                         harr = hist2array(obj, include_overflow=False).ravel().astype(dtype)
                         dset[...] = harr
+                        #save sumw2
+                        if not obj.GetSumw2().GetSize()>0: continue 
+                        sumw2_hist = obj.Clone()
+                        dset2 = f.create_dataset('{}/{}_sumw2'.format(branchDir,obj.GetName()), [nbins], dtype=dtype)
+                        sumw2f=[sumw2_hist.GetSumw2()[i] for i in range(sumw2_hist.GetSumw2().GetSize())]
+                        sumw2f = array('d',sumw2f)
+                        sumw2_hist.Set(sumw2_hist.GetSumw2().GetSize(), sumw2f)
+                        sumw2arr = hist2array(sumw2_hist, include_overflow=False).ravel().astype(dtype)
+                        dset2[...] = sumw2arr
+        os.chdir("..")
 
     def getObjects(self):
 
