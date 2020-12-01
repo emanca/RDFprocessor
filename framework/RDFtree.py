@@ -144,7 +144,7 @@ class RDFtree:
         self.objs[self.branchDir].append(out)
                     
 
-    def getOutput(self):
+    def getROOTOutput(self):
 
         #start analysis
         self.start = time.time()
@@ -169,8 +169,7 @@ class RDFtree:
             for obj in objs:
                 
                 if not 'TH' in type(obj).__cpp_name__:
-                    obj.GetValue()
-    
+                    continue
                 elif 'vector' in type(obj).__cpp_name__:
                     
                     for h in obj:
@@ -187,46 +186,81 @@ class RDFtree:
 
         print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start), "histograms written: ", obj_number)
 
-    def gethdf5Output(self):
+    def gethdf5Output(self,branchDirs=None):
 
+        ROOT.gInterpreter.Declare("""
+        #include <boost/histogram.hpp>
+        using namespace boost::histogram;
+        std::vector<std::vector<float>> convert(boost_histogram& h){
+            
+            std::vector<float> vals;
+            std::vector<float> sumw2;
+            for (auto&& x : indexed(h)) {
+                const auto n = x->value();
+                const auto w2 = x->variance();
+                //std::cout<< x.index(0) << " " << x.index(1) << " " << x.index(2) << " " << x.index(3) << " " << x.index(4) << std::endl;
+                vals.emplace_back(n);
+                sumw2.emplace_back(w2);
+                }
+            return std::vector<std::vector<float>>{vals,sumw2};
+            }; 
+        """
+        )
+
+        #start analysis
+        self.start = time.time()
+
+        if branchDirs is None:
+            branchDirs = list(self.objs.keys())
         os.chdir(self.outputDir)
-        with h5py.File(self.outputFile.replace('root','hdf5'), "w") as f:
+        with h5py.File(self.outputFile.replace('root','hdf5'), mode="w") as f:
             dtype = 'float64'
             for branchDir, objs in self.objs.items():
                 if objs == []: continue
+                if not branchDir in branchDirs: continue #only write selected folders
                 for obj in objs:
-                    if not 'TH' in type(obj).__cpp_name__: continue #skipping eventual TTree writing
+                    if not 'TH' in type(obj).__cpp_name__: #writing boost histograms
+                        map = obj.GetValue()
+                        for name,h in map:
+                            print(name)
+                            arr = ROOT.convert(h)
+                            counts = np.asarray(arr[0])
+                            sumw = np.asarray(arr[1])
+                            dset = f.create_dataset('{}'.format(name), [counts.shape[0]], dtype=dtype)
+                            dset[...] = counts
+                            dset2 = f.create_dataset('{}_sumw2'.format(name), [counts.shape[0]], dtype=dtype)
+                            dset2[...] = sumw
                     elif 'vector' in type(obj).__cpp_name__:
                         for h in obj:
                             nbins = h.GetNbinsX()*h.GetNbinsY() * h.GetNbinsZ()
-                            dset = f.create_dataset('{}/{}'.format(branchDir,h.GetName()), [nbins], dtype=dtype)
+                            dset = f.create_dataset('{}'.format(h.GetName()), [nbins], dtype=dtype)
                             harr = hist2array(h, include_overflow=False).ravel().astype(dtype)
                             dset[...] = harr
                             #save sumw2
                             if not h.GetSumw2().GetSize()>0: continue 
                             sumw2_hist = h.Clone()
-                            dset2 = f.create_dataset('{}/{}_sumw2'.format(branchDir,h.GetName()), [nbins], dtype=dtype)
+                            dset2 = f.create_dataset('{}_sumw2'.format(h.GetName()), [nbins], dtype=dtype)
                             sumw2f=[sumw2_hist.GetSumw2()[i] for i in range(sumw2_hist.GetSumw2().GetSize())]
                             sumw2f = np.array(sumw2f,dtype='float64')
-                            print(h.GetName())
-                            print(type(sumw2f),sumw2f)
                             sumw2_hist.Set(sumw2_hist.GetSumw2().GetSize(), sumw2f)
                             sumw2arr = hist2array(sumw2_hist, include_overflow=False).ravel().astype(dtype)
                             dset2[...] = sumw2arr
                     else:
                         nbins = obj.GetNbinsX()*obj.GetNbinsY() * obj.GetNbinsZ()
-                        dset = f.create_dataset('{}/{}'.format(branchDir,obj.GetName()), [nbins], dtype=dtype)
+                        dset = f.create_dataset('{}'.format(obj.GetName()), [nbins], dtype=dtype)
                         harr = hist2array(obj, include_overflow=False).ravel().astype(dtype)
                         dset[...] = harr
                         #save sumw2
                         if not obj.GetSumw2().GetSize()>0: continue 
                         sumw2_hist = obj.Clone()
-                        dset2 = f.create_dataset('{}/{}_sumw2'.format(branchDir,obj.GetName()), [nbins], dtype=dtype)
+                        dset2 = f.create_dataset('{}_sumw2'.format(obj.GetName()), [nbins], dtype=dtype)
                         sumw2f=[sumw2_hist.GetSumw2()[i] for i in range(sumw2_hist.GetSumw2().GetSize())]
                         sumw2f = array('d',sumw2f)
                         sumw2_hist.Set(sumw2_hist.GetSumw2().GetSize(), sumw2f)
                         sumw2arr = hist2array(sumw2_hist, include_overflow=False).ravel().astype(dtype)
                         dset2[...] = sumw2arr
+        
+        print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start))
         os.chdir("..")
 
     def getObjects(self):
