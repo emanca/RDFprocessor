@@ -15,6 +15,8 @@ class module:
         self.myTH3Group = []
         self.myTHNGroup = []
 
+        self.variationRules = ROOT.map("std::pair<std::string, bool>", "std::vector<std::string>")()
+
     def run(self,d):
 
         pass 
@@ -57,3 +59,13 @@ class module:
         self.myTH2Group = []
         self.myTH3Group = [] 
         self.myTHNGroup = []
+    
+    def setVariationRules(self, map):
+
+        self.variationRules = map
+    
+    def getVariationRules(self):
+
+        return self.variationRules
+
+

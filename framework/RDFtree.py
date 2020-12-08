@@ -21,7 +21,7 @@ class RDFtree:
 
             ROOT.ROOT.DisableImplicitMT()
             self.d = RDF(self.treeName, self.inputFile)
-            self.d=self.d.Range(100)
+            self.d=self.d.Range(1)
         else:
 
             self.d = RDF(self.treeName, self.inputFile)
@@ -29,6 +29,8 @@ class RDFtree:
         self.entries = self.d.Count() #stores lazily the number of events
         
         self.modules = []
+        
+        self.variationsRules = ROOT.map("std::pair<std::string, bool>", "std::vector<std::string>")() #systematic variations
 
         self.objs = {} # objects to be received from modules
         
@@ -63,12 +65,14 @@ class RDFtree:
         lenght = len(self.modules)
 
         self.modules.extend(modules)
-
+        
         # modify RDF according to modules
 
         for i, m in enumerate(self.modules[lenght:]): 
             
+            m.setVariationRules(self.variationsRules)
             branchRDF = m.run(ROOT.RDF.AsRNode(branchRDF))
+            self.variationsRules = m.getVariationRules()
 
             tmp_th1 = m.getTH1()
             tmp_th2 = m.getTH2()
@@ -187,25 +191,6 @@ class RDFtree:
         print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start), "histograms written: ", obj_number)
 
     def gethdf5Output(self,branchDirs=None):
-
-        ROOT.gInterpreter.Declare("""
-        #include <boost/histogram.hpp>
-        using namespace boost::histogram;
-        std::vector<std::vector<float>> convert(boost_histogram& h){
-            
-            std::vector<float> vals;
-            std::vector<float> sumw2;
-            for (auto&& x : indexed(h)) {
-                const auto n = x->value();
-                const auto w2 = x->variance();
-                //std::cout<< x.index(0) << " " << x.index(1) << " " << x.index(2) << " " << x.index(3) << " " << x.index(4) << std::endl;
-                vals.emplace_back(n);
-                sumw2.emplace_back(w2);
-                }
-            return std::vector<std::vector<float>>{vals,sumw2};
-            }; 
-        """
-        )
 
         #start analysis
         self.start = time.time()
