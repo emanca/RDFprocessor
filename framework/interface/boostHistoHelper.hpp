@@ -38,20 +38,21 @@ public:
    boostHistoHelper(std::string name,
                        std::vector<std::string> columns,
                        std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules,
-                       std::vector<float> bins1 = {0., 1.},
-                       std::vector<float> bins2 = {0., 1.},
-                       std::vector<float> bins3 = {0., 1.},
-                       std::vector<float> bins4 = {0., 1.},
-                       std::vector<float> bins5 = {0., 1.})
+                       std::vector<std::vector<float>> bins)
+                     //   std::vector<float> bins1 = {0., 1.},
+                     //   std::vector<float> bins2 = {0., 1.},
+                     //   std::vector<float> bins3 = {0., 1.},
+                     //   std::vector<float> bins4 = {0., 1.},
+                     //   std::vector<float> bins5 = {0., 1.})
    {
       _name = name;
       _columns = columns;
       _variationRules = variationRules;
-      _bins1 = bins1;
-      _bins2 = bins2;
-      _bins3 = bins3;
-      _bins4 = bins4;
-      _bins5 = bins5;
+      _bins1 = bins[0];
+      _bins2 = bins[1];
+      _bins3 = bins[2];
+      _bins4 = bins[3];
+      _bins5 = bins[4];
 
       _v.emplace_back(_bins1);
       _v.emplace_back(_bins2);
@@ -70,8 +71,15 @@ public:
 
          std::string slotnum = "";
          slotnum = slot > 0 ? std::to_string(slot) : "";
+         // first make nominal histogram
+         auto htmp = boost::histogram::make_weighted_histogram(_v);
+         hmap.insert(std::make_pair(_name, htmp));
+         //then check if variations are asked
          for (auto &x : _variationRules)
          {
+            int icol = getIndex(_columns, x.first.first);
+            // std::cout << icol << std::endl;
+            if(icol<0) continue;
             auto htmp = boost::histogram::make_weighted_histogram(_v);
             auto names = x.second;
             for (auto &n : names)
@@ -120,6 +128,7 @@ public:
    template <typename... Ts>
    void Exec(unsigned int slot, ROOT::VecOps::RVec<Ts>... vecs)
    {
+      // std::cout<<"exec"<<std::endl;
       std::map<std::string, boost_histogram> &hmap = *fHistos[slot];
       std::vector<ROOT::VecOps::RVec<double>> matrix;
       (matrix.push_back(vecs), ...);
@@ -143,7 +152,9 @@ public:
          {
             //which column are you?
             int icol = getIndex(_columns, col.first.first);
-            int i = getIndex(col.second, s)+1; //find variation
+            if (icol < 0) continue;
+            // std::cout << icol << " " << s <<std::endl;
+            int i = getIndex(col.second, s) + 1; //find variation
             // std::cout << col.first.first << " " << i << std::endl;
             indices[icol] = std::make_pair(i, col.first.second);
             // std::cout<< col.first.first << " index is " << i << std::endl;

@@ -129,8 +129,19 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
+    def Histogram(self, columns, types, node, histoname, bins):
+        d = self.node[node]
+        rules = self.variationsRules
+        self.branchDir = node
 
-    def takeSnapshot(self, node, blist=[]):
+        if not len(columns)== len(types): print('number of columns and types must match')
+        h = ROOT.Histogram(*types)()
+        histo = h(d, histoname, rules, bins, columns)
+        
+        value_type = getValueType(histo)
+        self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
+       
+    def Snapshot(self, node, blist=[]):
 
         opts = ROOT.ROOT.RDF.RSnapshotOptions()
         opts.fLazy = True
@@ -146,7 +157,6 @@ class RDFtree:
             out = self.node[node].Snapshot(self.treeName,self.outputFile, "", opts)
 
         self.objs[self.branchDir].append(out)
-                    
 
     def getROOTOutput(self):
 
