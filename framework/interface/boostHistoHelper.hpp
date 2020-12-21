@@ -4,6 +4,8 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
+//#include "../boost/rank_mod.hpp"
+
 #include <boost/histogram.hpp>
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
@@ -13,7 +15,20 @@
 //using boost_histogram = boost::histogram::histogram<std::tuple<boost::histogram::axis::variable<>, boost::histogram::axis::variable<>, boost::histogram::axis::variable<>, boost::histogram::axis::variable<>, boost::histogram::axis::variable<>>, boost::histogram::default_storage>;
 using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
 
-class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper>
+template <std::size_t... Is>
+auto create_tuple_impl(std::index_sequence<Is...>, const std::vector<double> &arguments)
+{
+   return std::make_tuple(arguments[Is]...);
+}
+
+template <std::size_t N>
+auto create_tuple(const std::vector<double> &arguments)
+{
+   return create_tuple_impl(std::make_index_sequence<N>{}, arguments);
+}
+
+template <std::size_t N>
+class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<N>>
 {
 
 public:
@@ -25,11 +40,6 @@ private:
    std::map<std::pair<std::string, bool>, std::vector<std::string>> _variationRules; //to keep track of the ordering
    std::string _name;
    std::vector<std::string> _columns;
-   std::vector<float> _bins1;
-   std::vector<float> _bins2;
-   std::vector<float> _bins3;
-   std::vector<float> _bins4;
-   std::vector<float> _bins5;
    std::vector<boost::histogram::axis::variable<>> _v;
 
 public:
@@ -39,26 +49,11 @@ public:
                        std::vector<std::string> columns,
                        std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules,
                        std::vector<std::vector<float>> bins)
-                     //   std::vector<float> bins1 = {0., 1.},
-                     //   std::vector<float> bins2 = {0., 1.},
-                     //   std::vector<float> bins3 = {0., 1.},
-                     //   std::vector<float> bins4 = {0., 1.},
-                     //   std::vector<float> bins5 = {0., 1.})
    {
       _name = name;
       _columns = columns;
       _variationRules = variationRules;
-      _bins1 = bins[0];
-      _bins2 = bins[1];
-      _bins3 = bins[2];
-      _bins4 = bins[3];
-      _bins5 = bins[4];
-
-      _v.emplace_back(_bins1);
-      _v.emplace_back(_bins2);
-      _v.emplace_back(_bins3);
-      _v.emplace_back(_bins4);
-      _v.emplace_back(_bins5);
+      for(auto &b:bins) _v.emplace_back(b);
 
       const auto nSlots = ROOT::IsImplicitMTEnabled() ? ROOT::GetThreadPoolSize() : 1;
 
@@ -73,6 +68,7 @@ public:
          slotnum = slot > 0 ? std::to_string(slot) : "";
          // first make nominal histogram
          auto htmp = boost::histogram::make_weighted_histogram(_v);
+         // std::cout << "rank is " << htmp.rank() << std::endl;
          hmap.insert(std::make_pair(_name, htmp));
          //then check if variations are asked
          for (auto &x : _variationRules)
@@ -84,8 +80,9 @@ public:
             auto names = x.second;
             for (auto &n : names)
             {
+               if(n=="") continue;
                std::string histoname = _name + "_" + n;
-               // std::cout << histoname << std::endl;
+               // std::cout << "histoname " << histoname << std::endl;
                hmap.insert(std::make_pair(histoname, htmp));
             }
          }
@@ -98,18 +95,6 @@ public:
    void Initialize() {}
    void InitTask(TTreeReader *, unsigned int) {}
    /// This is a method executed at every entry
-
-   template <std::size_t... Is>
-   auto create_tuple_impl(std::index_sequence<Is...>, const std::vector<double> &arguments)
-   {
-      return std::make_tuple(arguments[Is]...);
-   }
-
-   template <std::size_t N>
-   auto create_tuple(const std::vector<double> &arguments)
-   {
-      return create_tuple_impl(std::make_index_sequence<N>{}, arguments);
-   }
 
    int getIndex(std::vector<std::string> v, std::string K)
    {
@@ -143,7 +128,9 @@ public:
          while ((pos = s.find(delimiter)) != std::string::npos)
          {
             token = s.substr(0, pos);
+            // std::cout << "token " << token << std::endl;
             s.erase(0, pos + delimiter.length());
+            // std::cout<< "string " << s << std::endl;
          }
          //get indices
          std::vector<std::pair<int, bool>> indices;
@@ -167,16 +154,16 @@ public:
          {
             if (!(indices[i].second))
                values.push_back(matrix[i][indices[i].first]);
-            else
+            else{
+               // std::cout << i << " " << weight << " " << matrix[i][indices[i].first] << std::endl;
                weight *= matrix[i][indices[i].first];
+            }
          }
-         // constexpr auto size = x.second.rank();
-         // auto t = create_tuple<size>(values);
-         // // std::cout
+         auto t = create_tuple<N>(values);
+         // std::cout
          //     << "(" << std::get<0>(t) << ", " << std::get<1>(t)
          //     << ", " << std::get<2>(t) << ", " << std::get<3>(t) << ", " << std::get<4>(t) << ")\n";
-         // for(auto &v:values) std::cout<<v<<std::endl;
-         //x.second(values, boost::histogram::weight(weight));
+         std::apply([&](auto &&... args) { x.second(boost::histogram::weight(weight),args...); }, t);
       }
    }
    void Finalize()
