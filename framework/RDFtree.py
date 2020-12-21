@@ -68,7 +68,7 @@ class RDFtree:
         
         # modify RDF according to modules
 
-        for i, m in enumerate(self.modules[lenght:]): 
+        for m in self.modules[lenght:]: 
             
             m.setVariationRules(self.variationsRules)
             branchRDF = m.run(ROOT.RDF.AsRNode(branchRDF))
@@ -129,8 +129,21 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
+    def Histogram(self, columns, types, node, histoname, bins):
+        d = self.node[node]
+        rules = self.variationsRules
+        self.branchDir = node
 
-    def takeSnapshot(self, node, blist=[]):
+        if not len(columns)== len(types): print('number of columns and types must match')
+        nweights = len(columns) - len(bins)
+        # print("number of weights:",nweights)
+        h = ROOT.Histogram(len(bins),*types)()
+        histo = h(d, histoname, rules, bins, columns,nweights)
+        
+        value_type = getValueType(histo)
+        self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
+       
+    def Snapshot(self, node, blist=[]):
 
         opts = ROOT.ROOT.RDF.RSnapshotOptions()
         opts.fLazy = True
@@ -146,7 +159,6 @@ class RDFtree:
             out = self.node[node].Snapshot(self.treeName,self.outputFile, "", opts)
 
         self.objs[self.branchDir].append(out)
-                    
 
     def getROOTOutput(self):
 
