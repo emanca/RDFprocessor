@@ -4,6 +4,7 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
+#include "boost/rank_mod.hpp"
 #include <boost/histogram.hpp>
 #include <boost/functional/hash.hpp>
 #include <memory>
@@ -40,7 +41,7 @@ public:
   std::vector<ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>> getGroupTHN();
 
   void reset();
-  void variate(std::string, bool, std::vector<std::string>);
+  void vary(std::string, bool, std::vector<std::string>);
   void setVariationRules(std::map<std::pair<std::string, bool>, std::vector<std::string>>);
   std::map<std::pair<std::string, bool>, std::vector<std::string>> getVariationRules();
 };

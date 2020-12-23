@@ -1,4 +1,4 @@
-#include "interface/module.hpp"
+#include "module.hpp"
 
 std::vector<ROOT::RDF::RResultPtr<TH1D>> Module::getTH1()
 {
@@ -44,7 +44,7 @@ void Module::reset()
     _hNGroup.clear();
 }
 
-void Module::variate(std::string Column, bool isWeight, std::vector<std::string> variations)
+void Module::vary(std::string Column, bool isWeight, std::vector<std::string> variations)
 {
     auto pair = std::make_pair(Column, isWeight);
     _variationRules.insert(std::make_pair(pair, variations));
