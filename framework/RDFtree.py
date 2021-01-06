@@ -21,7 +21,7 @@ class RDFtree:
 
             ROOT.ROOT.DisableImplicitMT()
             self.d = RDF(self.treeName, self.inputFile)
-            self.d=self.d.Range(1)
+            self.d=self.d.Range(100)
         else:
 
             self.d = RDF(self.treeName, self.inputFile)
@@ -142,6 +142,20 @@ class RDFtree:
         
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
+    
+    def Profile(self, columns, types, node, profname, bins):
+        d = self.node[node]
+        rules = self.variationsRules
+        self.branchDir = node
+
+        if not len(columns)== len(types): print('number of columns and types must match')
+        nweights = len(columns) - len(bins) -1
+        # print("number of weights:",nweights)
+        h = ROOT.Profile(len(bins),*types)()
+        prof = h(d, profname, rules, bins, columns,nweights)
+        
+        value_type = getValueType(prof)
+        self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(prof))
        
     def Snapshot(self, node, blist=[]):
 

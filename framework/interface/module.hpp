@@ -12,8 +12,8 @@
 
 using namespace ROOT::VecOps;
 using RNode = ROOT::RDF::RNode;
-using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
 
+template <typename T>
 class Module
 {
 
@@ -22,28 +22,33 @@ public:
   virtual ~Module(){};
   virtual RNode run(RNode d) = 0;
 
-  std::vector<ROOT::RDF::RResultPtr<TH1D>> _h1List;
-  std::vector<ROOT::RDF::RResultPtr<TH2D>> _h2List;
-  std::vector<ROOT::RDF::RResultPtr<TH3D>> _h3List;
-  std::vector<ROOT::RDF::RResultPtr<std::vector<TH1D *>>> _h1Group;
-  std::vector<ROOT::RDF::RResultPtr<std::vector<TH2D *>>> _h2Group;
-  std::vector<ROOT::RDF::RResultPtr<std::vector<TH3D *>>> _h3Group;
-  std::vector<ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>> _hNGroup;
+  std::vector<ROOT::RDF::RResultPtr<T>> _container;
   //keep track of systematic variations
   std::map<std::pair<std::string, bool>, std::vector<std::string>> _variationRules; //std::map<std::pair<column,isWeight>, std::vector<variation_name>>
 
-  std::vector<ROOT::RDF::RResultPtr<TH1D>> getTH1();
-  std::vector<ROOT::RDF::RResultPtr<TH2D>> getTH2();
-  std::vector<ROOT::RDF::RResultPtr<TH3D>> getTH3();
-  std::vector<ROOT::RDF::RResultPtr<std::vector<TH1D *>>> getGroupTH1();
-  std::vector<ROOT::RDF::RResultPtr<std::vector<TH2D *>>> getGroupTH2();
-  std::vector<ROOT::RDF::RResultPtr<std::vector<TH3D *>>> getGroupTH3();
-  std::vector<ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>> getGroupTHN();
+  std::vector<ROOT::RDF::RResultPtr<T>> get(){
+    return _container;
+  };
 
-  void reset();
-  void vary(std::string, bool, std::vector<std::string>);
-  void setVariationRules(std::map<std::pair<std::string, bool>, std::vector<std::string>>);
-  std::map<std::pair<std::string, bool>, std::vector<std::string>> getVariationRules();
+  void reset(){
+    _container.clear(); 
+  };
+  
+  void vary(std::string Column, bool isWeight, std::vector<std::string> variations)
+  {
+    auto pair = std::make_pair(Column, isWeight);
+    _variationRules.insert(std::make_pair(pair, variations));
+  }
+
+  void setVariationRules(std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules)
+  {
+    _variationRules = variationRules;
+  }
+
+  std::map<std::pair<std::string, bool>, std::vector<std::string>> getVariationRules()
+  {
+    return _variationRules;
+  }
 };
 
 #endif
