@@ -12,9 +12,6 @@
 #include <memory>
 #include <tuple>
 
-//using boost_histogram = boost::histogram::histogram<std::tuple<boost::histogram::axis::variable<>, boost::histogram::axis::variable<>, boost::histogram::axis::variable<>, boost::histogram::axis::variable<>, boost::histogram::axis::variable<>>, boost::histogram::default_storage>;
-using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
-
 template <std::size_t... Is>
 auto create_tuple_impl(std::index_sequence<Is...>, const std::vector<double> &arguments)
 {
@@ -32,6 +29,7 @@ class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<
 {
 
 public:
+   using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
    /// This type is a requirement for every helper.
    using Result_t = std::map<std::string, boost_histogram>;
 
