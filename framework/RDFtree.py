@@ -133,10 +133,10 @@ class RDFtree:
         d = self.node[node]
         rules = self.variationsRules
         self.branchDir = node
-
+        
         if not len(columns)== len(types): print('number of columns and types must match')
         nweights = len(columns) - len(bins)
-        # print("number of weights:",nweights)
+        print("number of weights columns:",nweights)
         h = ROOT.Histogram(len(bins),*types)()
         histo = h(d, histoname, rules, bins, columns,nweights)
         

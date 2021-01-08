@@ -33,6 +33,7 @@ struct Histogram
         int index = 0;
         for (auto &col : columns)
         {
+            std::cout<< col <<std::endl;
             if (d.GetColumnType(col).find(s) != std::string::npos)
             { // if it's a vector
                 bool found = false;
@@ -60,7 +61,7 @@ struct Histogram
                     //check if it's a weight
                     if (index >= (columns.size() - n_weights))
                     {
-                        // std::cout << "this column is a weight: " << col << std::endl;
+                        std::cout << "this column is a weight: " << col << std::endl;
                         auto pair = std::make_pair("vec_"+col, true);
                         variationRules.insert(std::make_pair(pair, std::vector<std::string>({""})));
                     }
@@ -70,8 +71,11 @@ struct Histogram
             }
             index++;
         }
-        // for(auto &var:variationRules) std::cout<< var.first.first <<std::endl;
+        //std::cout<< "processing..." <<std::endl;
+        //for(auto &col:new_cols) std::cout<< col <<std::endl;
+        //std::cout<< "call helper..." <<std::endl;
         boostHistoHelper<N> helper(name, new_cols, variationRules, bins);
+        //std::cout<< "call book..." <<std::endl;
         auto h = d.Book<ROOT::VecOps::RVec<Ts>...>(std::move(helper), new_cols);
         return h;
     }
