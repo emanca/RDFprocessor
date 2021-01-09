@@ -295,3 +295,5 @@ class RDFtree:
 
         dot.render()  
 
+    def getCutFlowReport(self):
+        self.d.Report().Print()
