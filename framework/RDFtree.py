@@ -305,7 +305,7 @@ class RDFtree:
             self.graph[nodeToStart]=[nodeToEnd]
 
         branchRDF = self.node[nodeToStart]
-        filteredRDF = branchRDF.Filter(evfilter, filtername)
+        branchRDF = ROOT.RDF.AsRNode(ROOT.RDF.AsRNode(branchRDF).Filter(evfilter, filtername))
         self.node[nodeToEnd] = branchRDF
 
 
