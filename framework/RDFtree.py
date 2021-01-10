@@ -295,5 +295,19 @@ class RDFtree:
 
         dot.render()  
 
+    def EventFilter(self,nodeToStart, nodeToEnd, evfilter, filtername):
+        if not nodeToEnd in self.objs:
+            self.objs[nodeToEnd] = []
+   
+        if nodeToStart in self.graph:
+            self.graph[nodeToStart].append(nodeToEnd)
+        else: 
+            self.graph[nodeToStart]=[nodeToEnd]
+
+        branchRDF = self.node[nodeToStart]
+        branchRDF = ROOT.RDF.AsRNode(ROOT.RDF.AsRNode(branchRDF).Filter(evfilter, filtername))
+        self.node[nodeToEnd] = branchRDF
+
+
     def getCutFlowReport(self):
         self.d.Report().Print()
