@@ -1,9 +1,13 @@
 from header import *
+import os
 import copy
 import h5py
 import numpy as np
 from array import array
 from root_numpy import hist2array
+import ROOT
+ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/DataFormat.h"')
+ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Utility.h"')
 
 class RDFtree:
     def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False):
