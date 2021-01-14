@@ -4,9 +4,7 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
-#include "../boost/rank_mod.hpp"
-#include <../boost/histogram.hpp>
-#include <boost/functional/hash.hpp>
+#include <boost/histogram.hpp>
 #include "boostHistoHelper.hpp"
 #include <tuple>
 #include <vector>
@@ -32,7 +30,7 @@ struct Histogram
         int index = 0;
         for (auto &col : columns)
         {
-            std::cout<< col <<std::endl;
+            // std::cout<< col <<std::endl;
             if (d.GetColumnType(col).find(s) != std::string::npos)
             { // if it's a vector
                 bool found = false;
@@ -60,7 +58,7 @@ struct Histogram
                     //check if it's a weight
                     if (index >= (columns.size() - n_weights))
                     {
-                        std::cout << "this column is a weight: " << col << std::endl;
+                        // std::cout << "this column is a weight: " << col << std::endl;
                         auto pair = std::make_pair("vec_"+col, true);
                         variationRules.insert(std::make_pair(pair, std::vector<std::string>({""})));
                     }
@@ -99,7 +97,7 @@ struct Profile
         int index = 0;
         for (auto &col : columns)
         {
-            std::cout<< col << std::endl;
+            // std::cout<< col << std::endl;
             if (d.GetColumnType(col).find(s) != std::string::npos)
             { // if it's a vector
                 bool found = false;
@@ -137,7 +135,7 @@ struct Profile
             }
             index++;
         }
-        // for(auto &var:variationRules) std::cout<< var.first.first <<std::endl;
+        // // for(auto &var:variationRules) std::cout<< var.first.first <<std::endl;
         boostProfHelper<N> helper(name, new_cols, variationRules, bins);
         auto h = d.Book<ROOT::VecOps::RVec<Ts>...>(std::move(helper), new_cols);
         return h;

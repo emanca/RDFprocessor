@@ -4,8 +4,6 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
-//#include "../boost/rank_mod.hpp"
-
 #include <boost/histogram.hpp>
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
@@ -146,7 +144,7 @@ public:
             if (icol < 0)
                continue;                                            // this column doesn't enter in this histogram
             else if (col.second.size() == 1)                        // if it's a fake variation with 1 element only
-               indices[icol] = std::make_pair(0, col.first.second); // exit loop if this column has no variations. in this case index 0 is assigned
+               indices[icol] = std::make_pair(0, col.first.second); 
             else
             {
                if (s == _name)
