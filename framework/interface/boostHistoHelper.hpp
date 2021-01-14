@@ -4,8 +4,6 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
-//#include "../boost/rank_mod.hpp"
-
 #include <boost/histogram.hpp>
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
@@ -24,17 +22,18 @@ auto create_tuple(const std::vector<double> &arguments)
    return create_tuple_impl(std::make_index_sequence<N>{}, arguments);
 }
 
+using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
+
 template <std::size_t N>
 class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<N>>
 {
 
 public:
-   using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
    /// This type is a requirement for every helper.
    using Result_t = std::map<std::string, boost_histogram>;
 
 private:
-   std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos;                                                          // one per data processing slot
+   std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos;     // one per data processing slot
    std::map<std::pair<std::string, bool>, std::vector<std::string>> _variationRules; //to keep track of the ordering
    std::string _name;
    std::vector<std::string> _columns;
@@ -44,15 +43,17 @@ public:
    /// This constructor takes all the parameters necessary to build the THnTs. In addition, it requires the names of
    /// the columns which will be used.
    boostHistoHelper(std::string name,
-                       std::vector<std::string> columns,
-                       std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules,
-                       std::vector<std::vector<float>> bins)
+                    std::vector<std::string> columns,
+                    std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules,
+                    std::vector<std::vector<float>> bins)
    {
       _name = name;
       _columns = columns;
       _variationRules = variationRules;
-      for(auto &b:bins) _v.emplace_back(b);
-
+      
+      for (auto &b : bins)
+         _v.emplace_back(b);
+      
       const auto nSlots = ROOT::IsImplicitMTEnabled() ? ROOT::GetThreadPoolSize() : 1;
 
       for (auto slot : ROOT::TSeqU(nSlots))
@@ -73,12 +74,14 @@ public:
          {
             int icol = getIndex(_columns, x.first.first);
             // std::cout << icol << std::endl;
-            if(icol<0) continue;
+            if (icol < 0)
+               continue;
             auto htmp = boost::histogram::make_weighted_histogram(_v);
             auto names = x.second;
             for (auto &n : names)
             {
-               if(n=="") continue;
+               if (n == "")
+                  continue;
                std::string histoname = _name + "_" + n;
                // std::cout << "histoname " << histoname << std::endl;
                hmap.insert(std::make_pair(histoname, htmp));
@@ -121,7 +124,7 @@ public:
          //find variation linked to this histogram
          std::string delimiter = "_";
          size_t pos = 0;
-         std::string s=x.first;
+         std::string s = x.first;
          std::string token;
          while ((pos = s.find(delimiter)) != std::string::npos)
          {
@@ -136,13 +139,23 @@ public:
          for (auto &col : _variationRules)
          {
             //which column are you?
-            int icol = getIndex(_columns, col.first.first);
-            if (icol < 0) continue;
-            // std::cout << icol << " " << s <<std::endl;
-            int i = getIndex(col.second, s) + 1; //find variation
-            // std::cout << col.first.first << " " << i << std::endl;
-            indices[icol] = std::make_pair(i, col.first.second);
-            // std::cout<< col.first.first << " index is " << i << std::endl;
+            int icol = getIndex(_columns, col.first.first); // find variated column in column list
+            // std::cout << col.first.first << " " << icol << " " << s << std::endl;
+            if (icol < 0)
+               continue;                                            // this column doesn't enter in this histogram
+            else if (col.second.size() == 1)                        // if it's a fake variation with 1 element only
+               indices[icol] = std::make_pair(0, col.first.second); 
+            else
+            {
+               if (s == _name)
+                  indices[icol] = std::make_pair(0, col.first.second);
+               else
+               {
+                  int i = getIndex(col.second, s); // assign variation to the right histogram
+                  indices[icol] = std::make_pair(i, col.first.second);
+               }
+            }
+            // std::cout << col.first.first << " index is " << indices[icol].first << std::endl;
          }
          //extract values from columns
          std::vector<double> values;
@@ -150,9 +163,11 @@ public:
 
          for (unsigned int i = 0; i < indices.size(); i++)
          {
+            // std::cout << indices[i].first << " " << indices[i].second << std::endl;
             if (!(indices[i].second))
                values.push_back(matrix[i][indices[i].first]);
-            else{
+            else
+            {
                // std::cout << i << " " << weight << " " << matrix[i][indices[i].first] << std::endl;
                weight *= matrix[i][indices[i].first];
             }
@@ -161,7 +176,7 @@ public:
          // std::cout
          //     << "(" << std::get<0>(t) << ", " << std::get<1>(t)
          //     << ", " << std::get<2>(t) << ", " << std::get<3>(t) << ", " << std::get<4>(t) << ")\n";
-         std::apply([&](auto &&... args) { x.second(boost::histogram::weight(weight),args...); }, t);
+         std::apply([&](auto &&... args) { x.second(boost::histogram::weight(weight), args...); }, t);
       }
    }
    void Finalize()

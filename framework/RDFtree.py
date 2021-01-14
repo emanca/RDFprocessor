@@ -1,9 +1,12 @@
 from header import *
+import os
 import copy
 import h5py
 import numpy as np
 from array import array
-from root_numpy import hist2array
+import ROOT
+ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/DataFormat.h"')
+ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Utility.h"')
 
 class RDFtree:
     def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False):
@@ -133,10 +136,10 @@ class RDFtree:
         d = self.node[node]
         rules = self.variationsRules
         self.branchDir = node
-
+        
         if not len(columns)== len(types): print('number of columns and types must match')
         nweights = len(columns) - len(bins)
-        # print("number of weights:",nweights)
+        # print("number of weights columns:",nweights)
         h = ROOT.Histogram(len(bins),*types)()
         histo = h(d, histoname, rules, bins, columns,nweights)
         
@@ -245,31 +248,27 @@ class RDFtree:
                         for h in obj:
                             nbins = h.GetNbinsX()*h.GetNbinsY() * h.GetNbinsZ()
                             dset = f.create_dataset('{}'.format(h.GetName()), [nbins], dtype=dtype)
-                            harr = hist2array(h, include_overflow=False).ravel().astype(dtype)
+                            harr = np.array(h)[1:-1].ravel().astype(dtype) #no under/overflow bins
                             dset[...] = harr
                             #save sumw2
                             if not h.GetSumw2().GetSize()>0: continue 
                             sumw2_hist = h.Clone()
                             dset2 = f.create_dataset('{}_sumw2'.format(h.GetName()), [nbins], dtype=dtype)
                             sumw2f=[sumw2_hist.GetSumw2()[i] for i in range(sumw2_hist.GetSumw2().GetSize())]
-                            sumw2f = np.array(sumw2f,dtype='float64')
-                            sumw2_hist.Set(sumw2_hist.GetSumw2().GetSize(), sumw2f)
-                            sumw2arr = hist2array(sumw2_hist, include_overflow=False).ravel().astype(dtype)
-                            dset2[...] = sumw2arr
+                            sumw2f = np.array(sumw2f,dtype='float64').ravel().astype(dtype)
+                            dset2[...] = sumw2f
                     else:
                         nbins = obj.GetNbinsX()*obj.GetNbinsY() * obj.GetNbinsZ()
                         dset = f.create_dataset('{}'.format(obj.GetName()), [nbins], dtype=dtype)
-                        harr = hist2array(obj, include_overflow=False).ravel().astype(dtype)
+                        harr = np.array(h)[1:-1].ravel().astype(dtype) #no under/overflow bins
                         dset[...] = harr
                         #save sumw2
                         if not obj.GetSumw2().GetSize()>0: continue 
                         sumw2_hist = obj.Clone()
                         dset2 = f.create_dataset('{}_sumw2'.format(obj.GetName()), [nbins], dtype=dtype)
                         sumw2f=[sumw2_hist.GetSumw2()[i] for i in range(sumw2_hist.GetSumw2().GetSize())]
-                        sumw2f = array('d',sumw2f)
-                        sumw2_hist.Set(sumw2_hist.GetSumw2().GetSize(), sumw2f)
-                        sumw2arr = hist2array(sumw2_hist, include_overflow=False).ravel().astype(dtype)
-                        dset2[...] = sumw2arr
+                        sumw2f = np.array(sumw2f,dtype='float64').ravel().astype(dtype)
+                        dset2[...] = sumw2f
         
         print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start))
         os.chdir("..")
@@ -295,3 +294,19 @@ class RDFtree:
 
         dot.render()  
 
+    def EventFilter(self,nodeToStart, nodeToEnd, evfilter, filtername):
+        if not nodeToEnd in self.objs:
+            self.objs[nodeToEnd] = []
+   
+        if nodeToStart in self.graph:
+            self.graph[nodeToStart].append(nodeToEnd)
+        else: 
+            self.graph[nodeToStart]=[nodeToEnd]
+
+        branchRDF = self.node[nodeToStart]
+        branchRDF = ROOT.RDF.AsRNode(ROOT.RDF.AsRNode(branchRDF).Filter(evfilter, filtername))
+        self.node[nodeToEnd] = branchRDF
+
+
+    def getCutFlowReport(self):
+        self.d.Report().Print()
