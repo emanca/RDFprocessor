@@ -4,7 +4,6 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
-#include "boost/rank_mod.hpp"
 #include <boost/histogram.hpp>
 #include <boost/functional/hash.hpp>
 #include <memory>
