@@ -24,8 +24,8 @@ auto create_tuple(const std::vector<double> &arguments)
 
 using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
 
-template <std::size_t N>
-class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<N>>
+template <std::size_t Ncols, std::size_t Nweights>
+class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<Ncols, Nweights>>
 {
 
 public:
@@ -33,29 +33,27 @@ public:
    using Result_t = std::map<std::string, boost_histogram>;
 
 private:
-   std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos;     // one per data processing slot
-   std::map<std::pair<std::string, bool>, std::vector<std::string>> _variationRules; //to keep track of the ordering
+   std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos; // one per data processing slot
+   std::vector<std::vector<std::string>> _variationRules;                        //to keep track of the variations --> ordered as columns
    std::string _name;
-   std::vector<std::string> _columns;
    std::vector<boost::histogram::axis::variable<>> _v;
 
 public:
    /// This constructor takes all the parameters necessary to build the THnTs. In addition, it requires the names of
    /// the columns which will be used.
    boostHistoHelper(std::string name,
-                    std::vector<std::string> columns,
-                    std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules,
+                    std::vector<std::vector<std::string>> variationRules,
                     std::vector<std::vector<float>> bins)
    {
-      _name = name;
-      _columns = columns;
-      _variationRules = variationRules;
       
+      _name = name;
+      _variationRules = variationRules;
+
       for (auto &b : bins)
          _v.emplace_back(b);
       
       const auto nSlots = ROOT::IsImplicitMTEnabled() ? ROOT::GetThreadPoolSize() : 1;
-
+      
       for (auto slot : ROOT::TSeqU(nSlots))
       {
          fHistos.emplace_back(std::make_shared<std::map<std::string, boost_histogram>>());
@@ -70,19 +68,14 @@ public:
          // std::cout << "rank is " << htmp.rank() << std::endl;
          hmap.insert(std::make_pair(_name, htmp));
          //then check if variations are asked
-         for (auto &x : _variationRules)
+         for (auto &groupOfVars : _variationRules)
          {
-            int icol = getIndex(_columns, x.first.first);
-            // std::cout << icol << std::endl;
-            if (icol < 0)
+            if (groupOfVars[0] == "")
                continue;
-            auto htmp = boost::histogram::make_weighted_histogram(_v);
-            auto names = x.second;
-            for (auto &n : names)
+            for (auto &var : groupOfVars)
             {
-               if (n == "")
-                  continue;
-               std::string histoname = _name + "_" + n;
+               auto htmp = boost::histogram::make_weighted_histogram(_v);
+               std::string histoname = _name + "_" + var;
                // std::cout << "histoname " << histoname << std::endl;
                hmap.insert(std::make_pair(histoname, htmp));
             }
@@ -97,88 +90,75 @@ public:
    void InitTask(TTreeReader *, unsigned int) {}
    /// This is a method executed at every entry
 
-   int getIndex(std::vector<std::string> v, std::string K)
-   {
-      auto it = std::find(v.begin(), v.end(), K);
-      if (it != v.end())
-      {
-         int index = std::distance(v.begin(), it);
-         return index;
-      }
-      else
-      {
-         return -1;
-      }
-   }
-
    template <typename... Ts>
-   void Exec(unsigned int slot, ROOT::VecOps::RVec<Ts>... vecs)
+   void Exec(unsigned int slot, Ts... cols)
    {
-      // std::cout<<"exec"<<std::endl;
+      // std::cout << "exec" << std::endl;
       std::map<std::string, boost_histogram> &hmap = *fHistos[slot];
-      std::vector<ROOT::VecOps::RVec<double>> matrix;
-      (matrix.push_back(vecs), ...);
+      //fill nominal histogram
+      //extract values from columns
+      std::vector<ROOT::VecOps::RVec<double>> values;
+      (values.push_back(cols), ...); // this contains all the columns
 
-      for (auto &x : hmap)
+      //find a way to simplify this
+      // columns
+      std::vector<double> columns;
+      for (unsigned int i = 0; i < Ncols; i++)
       {
-         //find variation linked to this histogram
-         std::string delimiter = "_";
-         size_t pos = 0;
-         std::string s = x.first;
-         std::string token;
-         while ((pos = s.find(delimiter)) != std::string::npos)
-         {
-            token = s.substr(0, pos);
-            // std::cout << "token " << token << std::endl;
-            s.erase(0, pos + delimiter.length());
-            // std::cout<< "string " << s << std::endl;
-         }
-         //get indices
-         std::vector<std::pair<int, bool>> indices;
-         indices.resize(sizeof...(vecs));
-         for (auto &col : _variationRules)
-         {
-            //which column are you?
-            int icol = getIndex(_columns, col.first.first); // find variated column in column list
-            // std::cout << col.first.first << " " << icol << " " << s << std::endl;
-            if (icol < 0)
-               continue;                                            // this column doesn't enter in this histogram
-            else if (col.second.size() == 1)                        // if it's a fake variation with 1 element only
-               indices[icol] = std::make_pair(0, col.first.second); 
-            else
-            {
-               if (s == _name)
-                  indices[icol] = std::make_pair(0, col.first.second);
-               else
-               {
-                  int i = getIndex(col.second, s); // assign variation to the right histogram
-                  indices[icol] = std::make_pair(i, col.first.second);
-               }
-            }
-            // std::cout << col.first.first << " index is " << indices[icol].first << std::endl;
-         }
-         //extract values from columns
-         std::vector<double> values;
-         double weight = 1.;
+         columns.push_back(values[i][0]);
+         // std::cout << "columns: " << values[i][0] << std::endl;
+      }
+      // weights
+      std::vector<double> weights;
+      for (unsigned int i = Ncols; i < Ncols + Nweights; i++)
+      {
+         weights.push_back(values[i][0]);
+         // std::cout << "weights " << values[i][0] << std::endl;
+      }
+      double weight = std::accumulate(std::begin(weights), std::end(weights), 1, std::multiplies<double>());
+      // variations
+      std::vector<ROOT::VecOps::RVec<double>> variationVecs(values.begin() + Ncols + Nweights, values.end());
+      // std::cout << variationVecs.size() << " size " << std::endl;
+      auto t = create_tuple<Ncols>(columns);
+      // std::cout
+      //     << "(" << std::get<0>(t) << ", " << std::get<1>(t)
+      //     << ", " << std::get<2>(t) << ", " << std::get<3>(t) << ", " << std::get<4>(t) << ")\n";
+      std::apply([&](auto &&...args) { hmap.at(_name)(boost::histogram::weight(weight), args...); }, t);
 
-         for (unsigned int i = 0; i < indices.size(); i++)
+      // now fill variations
+      for (unsigned int i = 0; i < _variationRules.size(); i++)
+      {
+         // this index will tell which column to vary
+         // std::cout << " variations size" << _variationRules.size() << std::endl;
+         if (_variationRules[i][0] == "")
          {
-            // std::cout << indices[i].first << " " << indices[i].second << std::endl;
-            if (!(indices[i].second))
-               values.push_back(matrix[i][indices[i].first]);
-            else
-            {
-               // std::cout << i << " " << weight << " " << matrix[i][indices[i].first] << std::endl;
-               weight *= matrix[i][indices[i].first];
-            }
+            auto it = variationVecs.begin() + i;
+            auto newIt = variationVecs.insert(it, ROOT::VecOps::RVec<double>{-999999.}); // patch vector of variations
+            continue;                                  // nothing to vary
          }
-         auto t = create_tuple<N>(values);
-         // std::cout
-         //     << "(" << std::get<0>(t) << ", " << std::get<1>(t)
-         //     << ", " << std::get<2>(t) << ", " << std::get<3>(t) << ", " << std::get<4>(t) << ")\n";
-         std::apply([&](auto &&... args) { x.second(boost::histogram::weight(weight), args...); }, t);
+         for (unsigned int j = 0; j < _variationRules[i].size(); j++)
+         {
+            // std::cout << " variations number " << i << " " << _variationRules[i].size() << std::endl;
+            // first copy the nominal vector every time
+            std::vector<double> columns_var(columns);
+            std::vector<double> weights_var(weights);
+            // substitute the relevant column with its variation and fill
+            if (i < (Ncols + Nweights))
+            {
+               if (i < Ncols) columns_var[i] = variationVecs[i][j];
+               else
+                  weights_var[i - Ncols] = variationVecs[i][j];
+            }
+            else
+               throw std::invalid_argument("you're trying to vary a variation...");
+            auto t = create_tuple<Ncols>(columns_var);
+            double weight = std::accumulate(std::begin(weights), std::end(weights), 1, std::multiplies<double>());
+            std::string histoname = _name + "_" + _variationRules[i][j];
+            std::apply([&](auto &&...args) { hmap.at(histoname)(boost::histogram::weight(weight), args...); }, t);
+         }
       }
    }
+
    void Finalize()
    {
       // std::cout << "in Finalize" << std::endl;
@@ -188,7 +168,7 @@ public:
          auto &map = *fHistos[slot];
          for (auto &x : res)
          {
-            x.second += map[x.first];
+            x.second += map.at(x.first);
             // std::cout << x.second.rank() << std::endl;
          }
       }

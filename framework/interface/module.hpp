@@ -29,7 +29,7 @@ public:
   std::vector<ROOT::RDF::RResultPtr<std::vector<TH3D *>>> _h3Group;
   std::vector<ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>> _hNGroup;
   //keep track of systematic variations
-  std::map<std::pair<std::string, bool>, std::vector<std::string>> _variationRules; //std::map<std::pair<column,isWeight>, std::vector<variation_name>>
+  std::map<std::string, std::vector<std::string>> _variationRules; //std::map<std::pair<column,isWeight>, std::vector<variation_name>>
 
   std::vector<ROOT::RDF::RResultPtr<TH1D>> getTH1();
   std::vector<ROOT::RDF::RResultPtr<TH2D>> getTH2();
@@ -40,9 +40,9 @@ public:
   std::vector<ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>> getGroupTHN();
 
   void reset();
-  void vary(std::string, bool, std::vector<std::string>);
-  void setVariationRules(std::map<std::pair<std::string, bool>, std::vector<std::string>>);
-  std::map<std::pair<std::string, bool>, std::vector<std::string>> getVariationRules();
+  void vary(std::string, std::vector<std::string>);
+  void setVariationRules(std::map<std::string, std::vector<std::string>>);
+  std::map<std::string, std::vector<std::string>> getVariationRules();
 };
 
 #endif
