@@ -16,7 +16,7 @@ using RNode = ROOT::RDF::RNode;
 template <std::size_t Ncols, std::size_t Nweights, typename... Ts>
 struct Histogram
 {
-    ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>> operator()(RNode d, std::string name, std::vector<std::vector<float>> bins, const std::vector<std::string> &columns, const int &n_weights, std::vector<std::vector<std::string>> variationRules)
+    ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>> operator()(RNode d, std::string name, std::vector<std::vector<float>> bins, const std::vector<std::string> &columns, std::vector<std::vector<std::string>> variationRules)
     {
         auto vec = [](float value) {
             ROOT::VecOps::RVec<float> myvec;

@@ -157,13 +157,16 @@ class RDFtree:
         for icol, col in enumerate(columns):
             print(col, variations_vec[icol])
         #############################################################
-
         # print("number of weights columns:",nweights)
-        
+        ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
+        with open("helperbooker.cpp", "w") as f:                                                                            
+            code = bookingCode.format(template_args="{},{},{}".format(len(bins),nweights,', '.join(types)))                                                        
+            f.write(code)                                                                                                   
+        ROOT.gSystem.CompileMacro("helperbooker.cpp", "gfOd")                                                                
+                                                                                                                        
+        d = ROOT.RDataFrame(10)                                                                                             
+        histo = ROOT.BookIt(d, histoname, bins, columns,variations_vec) 
 
-        h = ROOT.Histogram(len(bins),nweights,*types)()
-        histo = h(d, histoname, bins, columns, nweights,variations_vec)
-        
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
         
