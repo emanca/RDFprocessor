@@ -24,7 +24,7 @@ class RDFtree:
 
             ROOT.ROOT.DisableImplicitMT()
             self.d = RDF(self.treeName, self.inputFile)
-            self.d=self.d.Range(100)
+            self.d=self.d.Range(10)
         else:
 
             self.d = RDF(self.treeName, self.inputFile)
@@ -33,7 +33,7 @@ class RDFtree:
         
         self.modules = []
         
-        self.variationsRules = ROOT.map("std::pair<std::string, bool>", "std::vector<std::string>")() #systematic variations
+        self.variationsRules = ROOT.map("std::string", "std::vector<std::string>")() #systematic variations
 
         self.objs = {} # objects to be received from modules
         
@@ -132,34 +132,42 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
-    def Histogram(self, columns, types, node, histoname, bins):
+    def Histogram(self, columns, types, node, histoname, bins, variations):
+
         d = self.node[node]
         rules = self.variationsRules
         self.branchDir = node
         
-        if not len(columns)== len(types): print('number of columns and types must match')
+        if not len(columns)==len(types): raise Exception('number of columns and types must match')
         nweights = len(columns) - len(bins)
+
+        variations_vec = ROOT.vector(ROOT.vector('string'))()
+        # reorder variations to follow column order
+        
+        for col in columns:
+            if col in rules:
+                variations_vec.push_back(copy.deepcopy(rules.at(col))) #deepcopy otherwise it gets deleted
+                columns.append(variations[col]) # append column containing variations
+                types.append('float')
+                variations_vec.push_back(ROOT.vector('string')({""}))
+            else:
+                variations_vec.push_back(ROOT.vector('string')({""}))
+        #############################################################
+        print("this is how I will make variations for this histogram")
+        for icol, col in enumerate(columns):
+            print(col, variations_vec[icol])
+        #############################################################
+
         # print("number of weights columns:",nweights)
-        h = ROOT.Histogram(len(bins),*types)()
-        histo = h(d, histoname, rules, bins, columns,nweights)
+        
+
+        h = ROOT.Histogram(len(bins),nweights,*types)()
+        histo = h(d, histoname, bins, columns, nweights,variations_vec)
         
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
-    
-    def Profile(self, columns, types, node, profname, bins):
-        d = self.node[node]
-        rules = self.variationsRules
-        self.branchDir = node
-
-        if not len(columns)== len(types): print('number of columns and types must match')
-        nweights = len(columns) - len(bins) -1
-        # print("number of weights:",nweights)
-        h = ROOT.Profile(len(bins),*types)()
-        prof = h(d, profname, rules, bins, columns,nweights)
         
-        value_type = getValueType(prof)
-        self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(prof))
-       
+    
     def Snapshot(self, node, blist=[]):
 
         opts = ROOT.ROOT.RDF.RSnapshotOptions()

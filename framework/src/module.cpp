@@ -44,18 +44,17 @@ void Module::reset()
     _hNGroup.clear();
 }
 
-void Module::vary(std::string Column, bool isWeight, std::vector<std::string> variations)
+void Module::vary(std::string Column, std::vector<std::string> variations)
 {
-    auto pair = std::make_pair(Column, isWeight);
-    _variationRules.insert(std::make_pair(pair, variations));
+    _variationRules.insert(std::make_pair(Column, variations));
 }
 
-void Module::setVariationRules(std::map<std::pair<std::string, bool>, std::vector<std::string>> variationRules)
+void Module::setVariationRules(std::map<std::string, std::vector<std::string>> variationRules)
 {
     _variationRules = variationRules;
 }
 
-std::map<std::pair<std::string, bool>, std::vector<std::string>> Module::getVariationRules()
+std::map<std::string, std::vector<std::string>> Module::getVariationRules()
 {
     return _variationRules;
 }
