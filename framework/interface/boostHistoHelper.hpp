@@ -115,7 +115,8 @@ public:
          weights.push_back(values[i][0]);
          // std::cout << "weights " << values[i][0] << std::endl;
       }
-      double weight = std::accumulate(std::begin(weights), std::end(weights), 1, std::multiplies<double>());
+      double weight = std::accumulate(std::begin(weights), std::end(weights), 1., std::multiplies<double>());
+      // std::cout<< "final weight " << weight << std::endl;
       // variations
       std::vector<ROOT::VecOps::RVec<double>> variationVecs(values.begin() + Ncols + Nweights, values.end());
       // std::cout << variationVecs.size() << " size " << std::endl;
@@ -152,7 +153,7 @@ public:
             else
                throw std::invalid_argument("you're trying to vary a variation...");
             auto t = create_tuple<Ncols>(columns_var);
-            double weight = std::accumulate(std::begin(weights), std::end(weights), 1, std::multiplies<double>());
+            double weight = std::accumulate(std::begin(weights), std::end(weights), 1., std::multiplies<double>());
             std::string histoname = _name + "_" + _variationRules[i][j];
             std::apply([&](auto &&...args) { hmap.at(histoname)(boost::histogram::weight(weight), args...); }, t);
          }
