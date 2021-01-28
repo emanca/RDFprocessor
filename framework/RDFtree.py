@@ -317,4 +317,10 @@ class RDFtree:
 
 
     def getCutFlowReport(self):
-        self.d.Report().Print()
+        return self.d.Report()
+
+    def displayColumn(self, node, columname, nrows=10):
+        if node not in self.graph : 
+            print("Node {} does not exist! Skipping display!".format(node))
+            return -1
+        self.node[node].Display(columname, nrows).Print()
