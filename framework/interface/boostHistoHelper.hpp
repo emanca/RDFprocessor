@@ -25,11 +25,11 @@ private:
    std::vector<std::vector<std::string>> _variationRules;                        //to keep track of the variations --> ordered as columns
    std::string _name;
    std::vector<boost::histogram::axis::variable<>> _v;
-   std::vector<std::vector<double>> _columns; // one value per column per processing slot
-   std::vector<std::vector<double>> _weights; // one value per weight per processing slot
-   std::vector<std::vector<ROOT::RVec<double>>> _variations; // one RVec per variation per processing slot
-   std::vector<std::vector<double>> _columns_var;
-   std::vector<std::vector<double>> _weights_var;
+   std::vector<std::vector<float>> _columns; // one value per column per processing slot
+   std::vector<std::vector<float>> _weights; // one value per weight per processing slot
+   std::vector<std::vector<ROOT::RVec<float>>> _variations; // one RVec per variation per processing slot
+   std::vector<std::vector<float>> _columns_var;
+   std::vector<std::vector<float>> _weights_var;
    std::vector<std::size_t> _colsWithVariationsIdx;
 public:
    /// This constructor takes all the parameters necessary to build the THnTs. In addition, it requires the names of
@@ -97,7 +97,7 @@ public:
    void InitTask(TTreeReader *, unsigned int) {}
    /// This is a method executed at every entry
    
-   void FillValues(double val, int n, unsigned int nSlot) {
+   void FillValues(float val, int n, unsigned int nSlot) {
       if (n < Ncols) {
          _columns[nSlot][n] = val;
       } else {
@@ -105,14 +105,14 @@ public:
       }
    }
 
-   void FillValues(const RVec<double> &val, int n, unsigned int nSlot) {
+   void FillValues(const RVec<float> &val, int n, unsigned int nSlot) {
       // convert "idx in array of cols with variations" into "idx in array of all cols"
       const auto nColOutOfAllColumns = _colsWithVariationsIdx[n - Ncols - Nweights];
       _variations[nSlot][nColOutOfAllColumns] = val;
    }
 
    template <std::size_t... Is>
-   void FillBoostHisto(boost_histogram &h, double weight, const std::vector<double> &columns, std::index_sequence<Is...>) {
+   void FillBoostHisto(boost_histogram &h, float weight, const std::vector<float> &columns, std::index_sequence<Is...>) {
       h(boost::histogram::weight(weight), columns[Is]...);
    }
 
@@ -129,7 +129,7 @@ public:
       auto &columns = _columns[slot];
       auto &weights = _weights[slot];
 
-      double weight = std::accumulate(std::begin(weights), std::end(weights), 1., std::multiplies<double>());
+      float weight = std::accumulate(std::begin(weights), std::end(weights), 1.f, std::multiplies<float>());
       auto &h = hmap.at(_name);
       FillBoostHisto(h, weight, columns, std::make_index_sequence<Ncols>{});
 
@@ -157,10 +157,11 @@ public:
             }
             else
                throw std::invalid_argument("you're trying to vary a variation...");
-            double weight = std::accumulate(std::begin(weights), std::end(weights), 1., std::multiplies<double>());
+            float weight =
+               std::accumulate(std::begin(weights_var), std::end(weights_var), 1.f, std::multiplies<float>());
             std::string histoname = _name + "_" + _variationRules[i][j]; // TODO pre-evaluate these
             auto &h = hmap.at(histoname);
-            FillBoostHisto(h, weight, columns, std::make_index_sequence<Ncols>{});
+            FillBoostHisto(h, weight, columns_var, std::make_index_sequence<Ncols>{});
          }
       }
    }
