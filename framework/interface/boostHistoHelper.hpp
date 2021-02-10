@@ -99,7 +99,7 @@ public:
    void InitTask(TTreeReader *, unsigned int) {}
    /// This is a method executed at every entry
    
-   void FillValues(float val, int n, unsigned int nSlot) {
+   void FillValues(float val, std::size_t n, unsigned int nSlot) {
       if (n < Ncols) {
          _columns[nSlot][n] = val;
       } else {
@@ -107,7 +107,7 @@ public:
       }
    }
 
-   void FillValues(const ROOT::RVec<float> &val, int n, unsigned int nSlot) {
+   void FillValues(const ROOT::RVec<float> &val, std::size_t n, unsigned int nSlot) {
       // convert "idx in array of cols with variations" into "idx in array of all cols"
       const auto nColOutOfAllColumns = _colsWithVariationsIdx[n - Ncols - Nweights];
       _variations[nSlot][nColOutOfAllColumns] = val;
@@ -125,7 +125,7 @@ public:
       std::vector<boost_histogram*> &histos = _histoPtrs[slot];
 
       //extract columns, weights and variations from cols
-      int i = 0;
+      std::size_t i = 0;
       (FillValues(cols, i++, slot), ...);
 
       auto &columns = _columns[slot];
