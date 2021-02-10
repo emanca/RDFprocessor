@@ -162,9 +162,8 @@ class RDFtree:
         with open("helperbooker.cpp", "w") as f:                                                                            
             code = bookingCode.format(template_args="{},{},{}".format(len(bins),nweights,', '.join(types)))                                                        
             f.write(code)                                                                                                   
-        ROOT.gSystem.CompileMacro("helperbooker.cpp", "gfOd")                                                                
-                                                                                                                        
-        d = ROOT.RDataFrame(10)                                                                                             
+        ROOT.gSystem.CompileMacro("helperbooker.cpp", "gfO")                                                            
+                                                                                                                                                                                                    
         histo = ROOT.BookIt(d, histoname, bins, columns,variations_vec) 
 
         value_type = getValueType(histo)
