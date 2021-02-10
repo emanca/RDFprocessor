@@ -148,7 +148,7 @@ class RDFtree:
             if col in rules:
                 variations_vec.push_back(copy.deepcopy(rules.at(col))) #deepcopy otherwise it gets deleted
                 columns.append(variations[col]) # append column containing variations
-                types.append('float')
+                types.append('RVec<float>')
                 variations_vec.push_back(ROOT.vector('string')({""}))
             else:
                 variations_vec.push_back(ROOT.vector('string')({""}))
