@@ -22,6 +22,7 @@ public:
 
 private:
    std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos; // one per data processing slot
+   std::vector<std::vector<boost_histogram*>> _histoPtrs; // one per data processing slot, pointint to the contents of fHistos (used for quicker access)
    std::vector<std::vector<std::string>> _variationRules;                        //to keep track of the variations --> ordered as columns
    std::string _name;
    std::vector<boost::histogram::axis::variable<>> _v;
@@ -36,7 +37,7 @@ public:
    /// the columns which will be used.
    boostHistoHelper(std::string name,
                     std::vector<std::vector<std::string>> variationRules,
-                    std::vector<std::vector<float>> bins, unsigned int nSlots) : _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _columns_var{nSlots}, _weights_var{nSlots}, _name{name}, _variationRules{variationRules}
+                    std::vector<std::vector<float>> bins, unsigned int nSlots) : _histoPtrs{nSlots}, _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _columns_var{nSlots}, _weights_var{nSlots}, _name{name}, _variationRules{variationRules}
    {
       for (auto &c : _columns)
          c.resize(Ncols);
@@ -64,12 +65,12 @@ public:
          // first make nominal histogram
          auto htmp = boost::histogram::make_weighted_histogram(_v);
          // std::cout << "rank is " << htmp.rank() << std::endl;
-         hmap.insert(std::make_pair(_name, htmp));
+         auto it = hmap.insert(std::make_pair(_name, htmp));
+         _histoPtrs[slot].emplace_back(&(*it.first)); // address of the thing just inserted
          //then check if variations are asked
          int colIdx = 0;
          for (auto &groupOfVars : _variationRules)
          {
-
             if (groupOfVars[0] == "") {
                ++colIdx;
                continue;
@@ -84,7 +85,8 @@ public:
                auto htmp = boost::histogram::make_weighted_histogram(_v);
                std::string histoname = _name + "_" + var;
                // std::cout << "histoname " << histoname << std::endl;
-               hmap.insert(std::make_pair(histoname, htmp));
+               auto it = hmap.insert(std::make_pair(histoname, htmp));
+               _histoPtrs[slot].emplace_back(&(*it.first)); // address of the thing just inserted
             }
          }
       }
@@ -120,7 +122,7 @@ public:
    void Exec(unsigned int slot, const Ts&... cols)
    {
       // std::cout << "exec" << std::endl;
-      std::map<std::string, boost_histogram> &hmap = *fHistos[slot];
+      std::vector<boost_histogram*> &histos = _histoPtrs[slot];
 
       //extract columns, weights and variations from cols
       int i = 0;
@@ -130,7 +132,7 @@ public:
       auto &weights = _weights[slot];
 
       float weight = std::accumulate(std::begin(weights), std::end(weights), 1.f, std::multiplies<float>());
-      auto &h = hmap.at(_name);
+      auto &h = histos[0];
       FillBoostHisto(h, weight, columns, std::make_index_sequence<Ncols>{});
 
       auto &columns_var = _columns_var[slot];
@@ -138,6 +140,7 @@ public:
       auto &variationVecs = _variations[slot];
 
       // now fill variations
+      int nHistogram = 1; // skip the nominal
       for (auto i : _colsWithVariationsIdx)
       {
          // this index will tell which column to vary
@@ -160,8 +163,9 @@ public:
             float weight =
                std::accumulate(std::begin(weights_var), std::end(weights_var), 1.f, std::multiplies<float>());
             std::string histoname = _name + "_" + _variationRules[i][j]; // TODO pre-evaluate these
-            auto &h = hmap.at(histoname);
+            auto &h = histos[nHistogram];
             FillBoostHisto(h, weight, columns_var, std::make_index_sequence<Ncols>{});
+            ++nHistogram;
          }
       }
    }
