@@ -105,7 +105,7 @@ public:
       }
    }
 
-   void FillValues(const RVec<float> &val, int n, unsigned int nSlot) {
+   void FillValues(const ROOT::RVec<float> &val, int n, unsigned int nSlot) {
       // convert "idx in array of cols with variations" into "idx in array of all cols"
       const auto nColOutOfAllColumns = _colsWithVariationsIdx[n - Ncols - Nweights];
       _variations[nSlot][nColOutOfAllColumns] = val;
@@ -138,7 +138,7 @@ public:
       auto &variationVecs = _variations[slot];
 
       // now fill variations
-      for (unsigned int i = 0; i < _variationRules.size(); i++)
+      for (auto i : _colsWithVariationsIdx)
       {
          // this index will tell which column to vary
          // std::cout << " variations size" << _variationRules.size() << std::endl;

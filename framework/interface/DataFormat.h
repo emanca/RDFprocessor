@@ -21,7 +21,7 @@ struct Histogram
         // std::cout<< "call helper..." <<std::endl;
         boostHistoHelper<Ncols, Nweights> helper(name, variationRules, bins, d.GetNSlots());
         // std::cout<< "call book..." <<std::endl;
-        auto h = d.Book<Ts...>(std::move(helper), new_cols);
+        auto h = d.Book<Ts...>(std::move(helper), columns);
         return h;
     }
 };
