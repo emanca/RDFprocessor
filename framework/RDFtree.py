@@ -148,7 +148,7 @@ class RDFtree:
             if col in rules:
                 variations_vec.push_back(copy.deepcopy(rules.at(col))) #deepcopy otherwise it gets deleted
                 columns.append(variations[col]) # append column containing variations
-                types.append('float')
+                types.append('RVec<float>')
                 variations_vec.push_back(ROOT.vector('string')({""}))
             else:
                 variations_vec.push_back(ROOT.vector('string')({""}))
@@ -157,17 +157,19 @@ class RDFtree:
         for icol, col in enumerate(columns):
             print(col, variations_vec[icol])
         #############################################################
+        if "helperbooker_{}_cpp.so".format(histoname) not in ROOT.gSystem.GetLibraries():
+            print('compiling')
+            ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
+            with open("helperbooker_{}.cpp".format(histoname), "w") as f:
+                code = bookingCode.format(template_args="{},{},{}".format(len(bins),nweights,', '.join(types)),N=histoname)                                                        
+                f.write(code)                                                                                                   
+            ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "gkO")                                                            
+                                                                                                                                                                                                    
+        histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, bins, columns,variations_vec) 
 
-        # print("number of weights columns:",nweights)
-        
-
-        h = ROOT.Histogram(len(bins),nweights,*types)()
-        histo = h(d, histoname, bins, columns, nweights,variations_vec)
-        
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
-        
-    
+
     def Snapshot(self, node, blist=[]):
 
         opts = ROOT.ROOT.RDF.RSnapshotOptions()
