@@ -15,7 +15,7 @@ bookingCode = """
 #include "DataFormat.h"                                                                                                   
                                                                                                                         
 ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>                                                                    
-BookIt(RNode d, std::string name, std::vector<std::vector<float>> bins, const std::vector<std::string> &columns, std::vector<std::vector<std::string>> variationRules) {{                                                     
+BookIt{N}(RNode d, std::string name, std::vector<std::vector<float>> bins, const std::vector<std::string> &columns, std::vector<std::vector<std::string>> variationRules) {{
  return Histogram<{template_args}>()(d, name, bins, columns, variationRules);                                                                           
 }}                                                                                                                      
 """   
