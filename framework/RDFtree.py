@@ -157,19 +157,19 @@ class RDFtree:
         for icol, col in enumerate(columns):
             print(col, variations_vec[icol])
         #############################################################
-        # print("number of weights columns:",nweights)
-        ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
-        with open("helperbooker.cpp", "w") as f:                                                                            
-            code = bookingCode.format(template_args="{},{},{}".format(len(bins),nweights,', '.join(types)))                                                        
-            f.write(code)                                                                                                   
-        ROOT.gSystem.CompileMacro("helperbooker.cpp", "gfO")                                                            
+        if "helperbooker_{}_cpp.so".format(histoname) not in ROOT.gSystem.GetLibraries():
+            print('compiling')
+            ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
+            with open("helperbooker_{}.cpp".format(histoname), "w") as f:
+                code = bookingCode.format(template_args="{},{},{}".format(len(bins),nweights,', '.join(types)),N=histoname)                                                        
+                f.write(code)                                                                                                   
+            ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "gkO")                                                            
                                                                                                                                                                                                     
-        histo = ROOT.BookIt(d, histoname, bins, columns,variations_vec) 
+        histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, bins, columns,variations_vec) 
 
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
-        
-    
+
     def Snapshot(self, node, blist=[]):
 
         opts = ROOT.ROOT.RDF.RSnapshotOptions()
