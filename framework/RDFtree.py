@@ -132,7 +132,7 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
-    def Histogram(self, columns, types, node, histoname, bins, variations):
+    def Histogram(self, columns, types, node, histoname, bins, variations=[]):
 
         d = self.node[node]
         rules = self.variationsRules
