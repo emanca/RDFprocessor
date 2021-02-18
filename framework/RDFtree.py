@@ -321,8 +321,10 @@ class RDFtree:
     def getCutFlowReport(self):
         return self.d.Report()
 
-    def displayColumn(self, node, columname, nrows=10):
-        if node not in self.graph : 
+    def displayColumn(self, node, columnList=[], nrows=100):
+        print("careful: this is triggering the event loop!")
+        if node not in self.node:
             print("Node {} does not exist! Skipping display!".format(node))
             return -1
-        self.node[node].Display(columname, nrows).Print()
+        columnVec = ROOT.vector('string')(columnList)
+        self.node[node].Display(columnVec, nrows).Print()
