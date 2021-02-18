@@ -43,7 +43,7 @@ public:
       for (auto &c : _columns)
          c.resize(Ncols);
       for (auto &w : _weights)
-         w.resize(Ncols + Nweights);
+         w.resize(Nweights);
       for (auto &v : _variations)
          v.resize(Ncols + Nweights); // i.e. as big as _variationRules.size()
       for (auto &c : _columns_var)
