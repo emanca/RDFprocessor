@@ -132,7 +132,7 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
-    def Histogram(self, columns, types, node, histoname, bins, variations=[]):
+    def Histogram(self, columns, types, node, histoname, bins, variations={}):
 
         d = self.node[node]
         rules = self.variationsRules
@@ -145,7 +145,7 @@ class RDFtree:
         # reorder variations to follow column order
         
         for col in columns:
-            if col in rules:
+            if not variations=={} and col in rules:
                 variations_vec.push_back(copy.deepcopy(rules.at(col))) #deepcopy otherwise it gets deleted
                 columns.append(variations[col]) # append column containing variations
                 types.append('RVec<float>')
