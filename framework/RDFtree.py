@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 from array import array
 import ROOT
+from pathlib import Path
 ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/DataFormat.h"')
 ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Utility.h"')
 
@@ -51,7 +52,12 @@ class RDFtree:
         self.fout.Close()
 
         os.chdir("..")
-        
+    
+    def __del__(self):
+        # delete helper scripts 
+        for p in Path(".").glob("helperbooker*"):
+            p.unlink()
+
     def branch(self,nodeToStart, nodeToEnd, modules=[]):
 
         self.branchDir = nodeToEnd
@@ -316,7 +322,6 @@ class RDFtree:
         branchRDF = self.node[nodeToStart]
         branchRDF = ROOT.RDF.AsRNode(ROOT.RDF.AsRNode(branchRDF).Filter(evfilter, filtername))
         self.node[nodeToEnd] = branchRDF
-
 
     def getCutFlowReport(self):
         return self.d.Report()
