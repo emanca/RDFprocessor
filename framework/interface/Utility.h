@@ -11,7 +11,7 @@ std::vector<std::vector<float>> convert(boost_histogram& h){
     for (auto&& x : indexed(h)) {
         const auto n = x->value();
         const auto w2 = x->variance();
-        //std::cout<< n <<std::endl;
+        // std::cout<< n <<std::endl;
         vals.emplace_back(n);
         sumw2.emplace_back(w2);
         }

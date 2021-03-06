@@ -9,11 +9,13 @@
 #include <boost/functional/hash.hpp>
 #include <memory>
 #include <tuple>
+#include <utility>
+#include <chrono>
 
 using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
 
-template <std::size_t Ncols, std::size_t Nweights>
-class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<Ncols, Nweights>>
+template <std::size_t Ncols, std::size_t Nweights, typename Bins>
+class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<Ncols, Nweights, Bins>>
 {
 
 public:
@@ -36,9 +38,7 @@ private:
 public:
    /// This constructor takes all the parameters necessary to build the THnTs. In addition, it requires the names of
    /// the columns which will be used.
-   boostHistoHelper(std::string name,
-                    std::vector<std::vector<std::string>> variationRules,
-                    std::vector<std::vector<float>> bins, unsigned int nSlots) : _histoPtrs{nSlots}, _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _columns_var{nSlots}, _weights_var{nSlots}, _name{name}, _variationRules{variationRules}
+   boostHistoHelper(std::string name, std::vector<std::vector<std::string>> variationRules, Bins bins, unsigned int nSlots) : _histoPtrs{nSlots}, _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _columns_var{nSlots}, _weights_var{nSlots}, _name{name}, _variationRules{variationRules}
    {
       for (auto &c : _columns)
          c.resize(Ncols);
@@ -51,8 +51,24 @@ public:
       for (auto &w : _weights_var)
          w.resize(Ncols + Nweights);
 
-      for (auto &b : bins)
-         _v.emplace_back(b);
+      // set up the binning
+      // auto b1 = std::get<0>(bins);
+      // auto d1 = std::tuple_size<decltype(b1)>::value - 1;
+      // auto b2 = std::get<1>(bins);
+      // auto d2 = std::tuple_size<decltype(b2)>::value - 1;
+      // auto b3 = std::get<2>(bins);
+      // auto d3 = std::tuple_size<decltype(b3)>::value - 1;
+      // auto b4 = std::get<3>(bins);
+      // auto d4 = std::tuple_size<decltype(b4)>::value - 1;
+      // auto b5 = std::get<4>(bins);
+      // auto d5 = std::tuple_size<decltype(b5)>::value - 1;
+      // auto b6 = std::get<5>(bins);
+      // auto d6 = std::tuple_size<decltype(b6)>::value - 1;
+      // int nbins = d1 * d2 * d3 * d4 * d5 * d6;
+      // std::cout << d1 << " " << d2 << " " << d3 << " " << d4 << " " << d5 << " " << d6 << std::endl;
+      // std::cout << "number of bins is " << nbins << std::endl;
+      construct_with_bins(bins);
+      std::make_index_sequence<std::tuple_size<decltype(bins)>::value> idx;
 
       // save index number (in the full list of columns) of the next column _with a variation_
       int colIdx = 0;
@@ -77,10 +93,17 @@ public:
          std::string slotnum = "";
          slotnum = slot > 0 ? std::to_string(slot) : "";
          // first make nominal histogram
+         std::cout << "creating nominal " << std::endl;
+         auto start = std::chrono::steady_clock::now();
          auto htmp = boost::histogram::make_weighted_histogram(_v);
-         // std::cout << "rank is " << htmp.rank() << std::endl;
+         auto end = std::chrono::steady_clock::now();
+         std::chrono::duration<double> elapsed_seconds = end - start;
+         std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+         std::cout << "rank is " << htmp.rank() << std::endl;
          auto it = hmap.insert(std::make_pair(_name, htmp));
+         std::cout << "inserted nominal " << std::endl;
          _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
+         std::cout << "nominal in vector" << std::endl;
          //then check variations
          for (auto &groupOfVars : _variationRules)
          {
@@ -103,7 +126,25 @@ public:
    std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos[0]; }
    void Initialize() {}
    void InitTask(TTreeReader *, unsigned int) {}
-   /// This is a method executed at every entry
+
+   template <typename BinsForOneAxis>
+   void CreateAxis(BinsForOneAxis &b)
+   {
+      auto axis_lambda = [&](auto &&...args) {return boost::histogram::axis::variable<>{args...}; };
+      auto axis = std::apply(axis_lambda, b);
+      _v.emplace_back(axis);
+   }
+   template <typename... Args, std::size_t... N>
+   void bins_helper(const std::tuple<Args...> &b, std::index_sequence<N...>)
+   {
+      (CreateAxis(std::get<N>(b)), ...);
+   }
+
+   template <typename Args, typename Idx = std::make_index_sequence<std::tuple_size<std::decay_t<Args>>::value>>
+   void construct_with_bins(const Args &b)
+   {
+      bins_helper(b, Idx{});
+   }
 
    void FillValues(float val, std::size_t n, unsigned int nSlot)
    {
@@ -133,7 +174,6 @@ public:
    template <typename... Ts>
    void Exec(unsigned int slot, const Ts &...cols)
    {
-      // std::cout << "exec" << std::endl;
       std::vector<boost_histogram *> &histos = _histoPtrs[slot];
 
       //extract columns, weights and variations from cols

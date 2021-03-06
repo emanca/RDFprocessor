@@ -143,7 +143,7 @@ class RDFtree:
         d = self.node[node]
         rules = self.variationsRules
         self.branchDir = node
-        
+
         if not len(columns)==len(types): raise Exception('number of columns and types must match')
         nweights = len(columns) - len(bins)
 
@@ -158,6 +158,17 @@ class RDFtree:
                 variations_vec.push_back(ROOT.vector('string')({""}))
             else:
                 variations_vec.push_back(ROOT.vector('string')({""}))
+
+        binningCode = 'auto bins_{} = std::make_tuple('.format(histoname)
+        for bin in bins: 
+            binningCode+='std::make_tuple({}),'.format(', '.join(str(x) for x in bin))
+        binningCode = ','.join(binningCode.split(',')[:-1])
+        binningCode+=')'
+        # print(binningCode)
+        ROOT.gInterpreter.ProcessLine(binningCode)
+
+        templ = type(getattr(ROOT,"bins_{}".format(histoname))).__cpp_name__
+        # print(templ)
         #############################################################
         print("this is how I will make variations for this histogram")
         for icol, col in enumerate(columns):
@@ -167,11 +178,11 @@ class RDFtree:
             print('compiling')
             ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
             with open("helperbooker_{}.cpp".format(histoname), "w") as f:
-                code = bookingCode.format(template_args="{},{},{}".format(len(bins),nweights,', '.join(types)),N=histoname)                                                        
+                code = bookingCode.format(binsType = templ, template_args="{},{},{},{}".format(len(bins),nweights,templ,', '.join(types)),N=histoname)
                 f.write(code)                                                                                                   
-            ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "gkO")                                                            
-                                                                                                                                                                                                    
-        histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, bins, columns,variations_vec) 
+            ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "kO")                                                            
+
+        histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, getattr(ROOT,"bins_{}".format(histoname)), columns,variations_vec) 
 
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
