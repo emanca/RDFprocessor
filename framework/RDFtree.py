@@ -262,15 +262,17 @@ class RDFtree:
                 for obj in objs:
                     if not 'TH' in type(obj).__cpp_name__: #writing boost histograms
                         map = obj.GetValue()
+                        print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start))
                         for name,h in map:
                             print(name)
                             arr = ROOT.convert(h)
-                            counts = np.asarray(arr[0])
-                            sumw = np.asarray(arr[1])
+                            # counts = np.asarray(arr[0])
+                            # sumw = np.asarray(arr[1])
+                            counts = np.asarray(arr)
                             dset = f.create_dataset('{}'.format(name), [counts.shape[0]], dtype=dtype)
                             dset[...] = counts
-                            dset2 = f.create_dataset('{}_sumw2'.format(name), [counts.shape[0]], dtype=dtype)
-                            dset2[...] = sumw
+                            # dset2 = f.create_dataset('{}_sumw2'.format(name), [counts.shape[0]], dtype=dtype)
+                            # dset2[...] = sumw
                     elif 'vector' in type(obj).__cpp_name__:
                         for h in obj:
                             nbins = h.GetNbinsX()*h.GetNbinsY() * h.GetNbinsZ()

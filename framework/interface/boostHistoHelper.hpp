@@ -7,13 +7,14 @@
 #include <boost/histogram.hpp>
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
+#include "thread_safe_doubles.hpp"
 #include <memory>
 #include <tuple>
 #include <utility>
 #include <chrono>
 
-using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
-
+// using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
+using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<double, boost::use_default,boost::use_default, std::allocator<double>>,std::allocator<boost::histogram::axis::variable<double, boost::use_default,boost::use_default, std::allocator<double>>>>,boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_doubles<double>,std::allocator<boost::histogram::accumulators::thread_safe_doubles<double>>>>>;
 template <std::size_t Ncols, std::size_t Nweights, typename Bins>
 class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<Ncols, Nweights, Bins>>
 {
@@ -23,11 +24,11 @@ public:
    using Result_t = std::map<std::string, boost_histogram>;
 
 private:
-   std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos; // one per data processing slot
-   std::vector<std::vector<boost_histogram *>> _histoPtrs;                       // one per data processing slot, pointint to the contents of fHistos (used for quicker access)
-   std::vector<std::vector<std::string>> _variationRules;                        //to keep track of the variations --> ordered as columns
+   std::shared_ptr<std::map<std::string, boost_histogram>> fHistos;
+   std::vector<boost_histogram *> _histoPtrs;             // pointing to the contents of fHistos (used for quicker access)
+   std::vector<std::vector<std::string>> _variationRules; //to keep track of the variations --> ordered as columns
    std::string _name;
-   std::vector<boost::histogram::axis::variable<>> _v;
+   std::vector<boost::histogram::axis::variable<>> _v;      // contains the axes of the histograms
    std::vector<std::vector<float>> _columns;                // one value per column per processing slot
    std::vector<std::vector<float>> _weights;                // one value per weight per processing slot
    std::vector<std::vector<ROOT::RVec<float>>> _variations; // one RVec per variation per processing slot
@@ -38,7 +39,7 @@ private:
 public:
    /// This constructor takes all the parameters necessary to build the THnTs. In addition, it requires the names of
    /// the columns which will be used.
-   boostHistoHelper(std::string name, std::vector<std::vector<std::string>> variationRules, Bins bins, unsigned int nSlots) : _histoPtrs{nSlots}, _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _columns_var{nSlots}, _weights_var{nSlots}, _name{name}, _variationRules{variationRules}
+   boostHistoHelper(std::string name, std::vector<std::vector<std::string>> variationRules, Bins bins, unsigned int nSlots) : _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _columns_var{nSlots}, _weights_var{nSlots}, _name{name}, _variationRules{variationRules}
    {
       for (auto &c : _columns)
          c.resize(Ncols);
@@ -83,54 +84,54 @@ public:
          ++colIdx;
       }
 
-      for (auto slot : ROOT::TSeqU(nSlots))
+      fHistos = std::make_shared<std::map<std::string, boost_histogram>>();
+      std::map<std::string, boost_histogram> &hmap = *fHistos;
+
+      // first make nominal histogram
+      std::cout << "creating nominal " << std::endl;
+      auto start = std::chrono::steady_clock::now();
+      auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_doubles<double>>(), _v);
+      // decltype(htmp)::foo = 1;
+      auto end = std::chrono::steady_clock::now();
+      std::chrono::duration<double> elapsed_seconds = end - start;
+      std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+      std::cout << "rank is " << htmp.rank() << std::endl;
+      start = std::chrono::steady_clock::now();
+      auto it = hmap.insert(std::make_pair(_name, htmp));
+      end = std::chrono::steady_clock::now();
+      elapsed_seconds = end - start;
+      std::cout << "elapsed time for insertion: " << elapsed_seconds.count() << "s\n";
+      start = std::chrono::steady_clock::now();
+      _histoPtrs.emplace_back(&(it.first->second)); // address of the thing just inserted
+      end = std::chrono::steady_clock::now();
+      elapsed_seconds = end - start;
+      std::cout << "elapsed time for emplacing in vector: " << elapsed_seconds.count() << "s\n";
+      //then check variations
+      for (auto &groupOfVars : _variationRules)
       {
-         fHistos.emplace_back(std::make_shared<std::map<std::string, boost_histogram>>());
-         (void)slot;
-
-         std::map<std::string, boost_histogram> &hmap = *fHistos[slot];
-
-         std::string slotnum = "";
-         slotnum = slot > 0 ? std::to_string(slot) : "";
-         // first make nominal histogram
-         std::cout << "creating nominal " << std::endl;
-         auto start = std::chrono::steady_clock::now();
-         auto htmp = boost::histogram::make_weighted_histogram(_v);
-         auto end = std::chrono::steady_clock::now();
-         std::chrono::duration<double> elapsed_seconds = end - start;
-         std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-         std::cout << "rank is " << htmp.rank() << std::endl;
-         auto it = hmap.insert(std::make_pair(_name, htmp));
-         std::cout << "inserted nominal " << std::endl;
-         _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-         std::cout << "nominal in vector" << std::endl;
-         //then check variations
-         for (auto &groupOfVars : _variationRules)
+         if (groupOfVars[0] == "")
+            continue;
+         for (auto &var : groupOfVars)
          {
-            if (groupOfVars[0] == "")
-               continue;
-            for (auto &var : groupOfVars)
-            {
-               auto htmp = boost::histogram::make_weighted_histogram(_v);
-               std::string histoname = _name + "_" + var;
-               // std::cout << "histoname " << histoname << std::endl;
-               auto it = hmap.insert(std::make_pair(histoname, htmp));
-               _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-            }
+            auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_doubles<double>>(), _v);
+            std::string histoname = _name + "_" + var;
+            // std::cout << "histoname " << histoname << std::endl;
+            auto it = hmap.insert(std::make_pair(histoname, htmp));
+            _histoPtrs.emplace_back(&(it.first->second)); // address of the thing just inserted
          }
       }
    }
 
    boostHistoHelper(boostHistoHelper &&) = default;
    boostHistoHelper(const boostHistoHelper &) = delete;
-   std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos[0]; }
+   std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos; }
    void Initialize() {}
    void InitTask(TTreeReader *, unsigned int) {}
 
    template <typename BinsForOneAxis>
    void CreateAxis(BinsForOneAxis &b)
    {
-      auto axis_lambda = [&](auto &&...args) {return boost::histogram::axis::variable<>{args...}; };
+      auto axis_lambda = [&](auto &&...args) { return boost::histogram::axis::variable<>{args...}; };
       auto axis = std::apply(axis_lambda, b);
       _v.emplace_back(axis);
    }
@@ -174,7 +175,7 @@ public:
    template <typename... Ts>
    void Exec(unsigned int slot, const Ts &...cols)
    {
-      std::vector<boost_histogram *> &histos = _histoPtrs[slot];
+      std::vector<boost_histogram *> &histos = _histoPtrs;
 
       //extract columns, weights and variations from cols
       std::size_t i = 0;
@@ -222,17 +223,17 @@ public:
 
    void Finalize()
    {
-      // std::cout << "in Finalize" << std::endl;
-      auto &res = *fHistos[0];
-      for (auto slot : ROOT::TSeqU(1, fHistos.size()))
-      {
-         auto &map = *fHistos[slot];
-         for (auto &x : res)
-         {
-            x.second += map.at(x.first);
-            // std::cout << x.second.rank() << std::endl;
-         }
-      }
+      std::cout << "in Finalize" << std::endl;
+      // auto &res = *fHistos[0];
+      // for (auto slot : ROOT::TSeqU(1, fHistos.size()))
+      // {
+      //    auto &map = *fHistos[slot];
+      //    for (auto &x : res)
+      //    {
+      //       x.second += map.at(x.first);
+      //       // std::cout << x.second.rank() << std::endl;
+      //    }
+      // }
    }
    std::string GetActionName()
    {
