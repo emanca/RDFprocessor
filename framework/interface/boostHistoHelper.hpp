@@ -52,21 +52,21 @@ public:
          w.resize(Ncols + Nweights);
 
       // set up the binning
-      auto b1 = std::get<0>(bins);
-      auto d1 = std::tuple_size<decltype(b1)>::value - 1;
-      auto b2 = std::get<1>(bins);
-      auto d2 = std::tuple_size<decltype(b2)>::value - 1;
-      auto b3 = std::get<2>(bins);
-      auto d3 = std::tuple_size<decltype(b3)>::value - 1;
-      auto b4 = std::get<3>(bins);
-      auto d4 = std::tuple_size<decltype(b4)>::value - 1;
-      auto b5 = std::get<4>(bins);
-      auto d5 = std::tuple_size<decltype(b5)>::value - 1;
-      auto b6 = std::get<5>(bins);
-      auto d6 = std::tuple_size<decltype(b6)>::value - 1;
-      int nbins = d1 * d2 * d3 * d4 * d5 * d6;
-      std::cout << d1 << " " << d2 << " " << d3 << " " << d4 << " " << d5 << " " << d6 << std::endl;
-      std::cout << "number of bins is " << nbins << std::endl;
+      // auto b1 = std::get<0>(bins);
+      // auto d1 = std::tuple_size<decltype(b1)>::value - 1;
+      // auto b2 = std::get<1>(bins);
+      // auto d2 = std::tuple_size<decltype(b2)>::value - 1;
+      // auto b3 = std::get<2>(bins);
+      // auto d3 = std::tuple_size<decltype(b3)>::value - 1;
+      // auto b4 = std::get<3>(bins);
+      // auto d4 = std::tuple_size<decltype(b4)>::value - 1;
+      // auto b5 = std::get<4>(bins);
+      // auto d5 = std::tuple_size<decltype(b5)>::value - 1;
+      // auto b6 = std::get<5>(bins);
+      // auto d6 = std::tuple_size<decltype(b6)>::value - 1;
+      // int nbins = d1 * d2 * d3 * d4 * d5 * d6;
+      // std::cout << d1 << " " << d2 << " " << d3 << " " << d4 << " " << d5 << " " << d6 << std::endl;
+      // std::cout << "number of bins is " << nbins << std::endl;
       construct_with_bins(bins);
       std::make_index_sequence<std::tuple_size<decltype(bins)>::value> idx;
 

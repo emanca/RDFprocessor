@@ -159,7 +159,7 @@ class RDFtree:
             else:
                 variations_vec.push_back(ROOT.vector('string')({""}))
 
-        binningCode = 'auto bins = std::make_tuple('
+        binningCode = 'auto bins_{} = std::make_tuple('.format(histoname)
         for bin in bins: 
             binningCode+='std::make_tuple({}),'.format(', '.join(str(x) for x in bin))
         binningCode = ','.join(binningCode.split(',')[:-1])
@@ -167,7 +167,7 @@ class RDFtree:
         # print(binningCode)
         ROOT.gInterpreter.ProcessLine(binningCode)
 
-        templ = type(ROOT.bins).__cpp_name__
+        templ = type(getattr(ROOT,"bins_{}".format(histoname))).__cpp_name__
         # print(templ)
         #############################################################
         print("this is how I will make variations for this histogram")
@@ -180,9 +180,9 @@ class RDFtree:
             with open("helperbooker_{}.cpp".format(histoname), "w") as f:
                 code = bookingCode.format(binsType = templ, template_args="{},{},{},{}".format(len(bins),nweights,templ,', '.join(types)),N=histoname)
                 f.write(code)                                                                                                   
-            ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "gkO")                                                            
+            ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "kO")                                                            
 
-        histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, ROOT.bins, columns,variations_vec) 
+        histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, getattr(ROOT,"bins_{}".format(histoname)), columns,variations_vec) 
 
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
