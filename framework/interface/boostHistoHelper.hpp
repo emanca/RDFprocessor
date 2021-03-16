@@ -93,17 +93,17 @@ public:
          std::string slotnum = "";
          slotnum = slot > 0 ? std::to_string(slot) : "";
          // first make nominal histogram
-         std::cout << "creating nominal " << std::endl;
+         // std::cout << "creating nominal " << std::endl;
          auto start = std::chrono::steady_clock::now();
          auto htmp = boost::histogram::make_weighted_histogram(_v);
          auto end = std::chrono::steady_clock::now();
          std::chrono::duration<double> elapsed_seconds = end - start;
-         std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-         std::cout << "rank is " << htmp.rank() << std::endl;
+         // std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+         // std::cout << "rank is " << htmp.rank() << std::endl;
          auto it = hmap.insert(std::make_pair(_name, htmp));
-         std::cout << "inserted nominal " << std::endl;
+         // std::cout << "inserted nominal " << std::endl;
          _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-         std::cout << "nominal in vector" << std::endl;
+         // std::cout << "nominal in vector" << std::endl;
          //then check variations
          for (auto &groupOfVars : _variationRules)
          {
