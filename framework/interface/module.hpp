@@ -6,6 +6,7 @@
 #include "ROOT/RDF/RInterface.hxx"
 #include <boost/histogram.hpp>
 #include <boost/functional/hash.hpp>
+#include "thread_safe_doubles.hpp"
 #include <memory>
 #include <tuple>
 
