@@ -6,14 +6,13 @@
 #include "ROOT/RDF/RInterface.hxx"
 #include <boost/histogram.hpp>
 #include <boost/functional/hash.hpp>
-#include "thread_safe_doubles.hpp"
+#include "thread_safe_withvariance.hpp"
 #include <memory>
 #include <tuple>
 
 using namespace ROOT::VecOps;
 using RNode = ROOT::RDF::RNode;
-// using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
-using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<double, boost::use_default, boost::use_default, std::allocator<double>>, std::allocator<boost::histogram::axis::variable<double, boost::use_default, boost::use_default, std::allocator<double>>>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_doubles<double>, std::allocator<boost::histogram::accumulators::thread_safe_doubles<double>>>>>;
+using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<double, boost::use_default, boost::use_default, std::allocator<double>>, std::allocator<boost::histogram::axis::variable<double, boost::use_default, boost::use_default, std::allocator<double>>>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_withvariance<double>, std::allocator<boost::histogram::accumulators::thread_safe_withvariance<double>>>>>;
 
 class Module
 {

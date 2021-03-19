@@ -266,13 +266,12 @@ class RDFtree:
                         for name,h in map:
                             print(name)
                             arr = ROOT.convert(h)
-                            # counts = np.asarray(arr[0])
-                            # sumw = np.asarray(arr[1])
-                            counts = np.asarray(arr)
+                            counts = np.asarray(arr[0])
+                            sumw = np.asarray(arr[1])
                             dset = f.create_dataset('{}'.format(name), [counts.shape[0]], dtype=dtype)
                             dset[...] = counts
-                            # dset2 = f.create_dataset('{}_sumw2'.format(name), [counts.shape[0]], dtype=dtype)
-                            # dset2[...] = sumw
+                            dset2 = f.create_dataset('{}_sumw2'.format(name), [counts.shape[0]], dtype=dtype)
+                            dset2[...] = sumw
                     elif 'vector' in type(obj).__cpp_name__:
                         for h in obj:
                             nbins = h.GetNbinsX()*h.GetNbinsY() * h.GetNbinsZ()

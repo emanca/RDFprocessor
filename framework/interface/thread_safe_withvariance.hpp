@@ -21,18 +21,6 @@ namespace boost
         namespace accumulators
         {
 
-            /** Thread-safe adaptor for builtin integral and floating point numbers.
-
-  This adaptor uses std::atomic to make concurrent increments and additions safe for the
-  stored value.
-
-  On common computing platforms, the adapted integer has the same size and
-  alignment as underlying type. The atomicity is implemented with a special CPU
-  instruction. On exotic platforms the size of the adapted number may be larger and/or the
-  type may have different alignment, which means it cannot be tightly packed into arrays.
-
-  @tparam T type to adapt, must be supported by std::atomic.
- */
             template <class T>
             class thread_safe_withvariance
             {
@@ -46,13 +34,9 @@ namespace boost
                 // thread_safe_withvariance() noexcept : thread_safe_withvariance(super_t(static_cast<T>(0)), super_t(static_cast<T>(0))) {}
                 // non-atomic copy and assign is allowed, because storage is locked in this case
                 thread_safe_withvariance() = default;
-                thread_safe_withvariance(const thread_safe_withvariance &o) noexcept
-                {
-                    sum_of_weights_.store(o.value().load());
-                    sum_of_weights_squared_.store(o.variance().load());
-                    return *this;
-                }
                 // copy constructor
+                thread_safe_withvariance(const thread_safe_withvariance &o) noexcept : sum_of_weights_(o.value().load()), sum_of_weights_squared_(o.variance().load()) {}
+
                 thread_safe_withvariance &operator=(const thread_safe_withvariance &o) noexcept
                 {
                     sum_of_weights_.store(o.value().load());
@@ -76,9 +60,53 @@ namespace boost
                     sum_of_weights_squared_ += arg.sum_of_weights_squared_.load();
                     return *this;
                 }
+
+                thread_safe_withvariance &operator+=(value_type arg)
+                {
+                    // use Josh's trick for summing doubles
+                    double old_val = sum_of_weights_.load();
+                    double desired_val = old_val + arg;
+                    while (!sum_of_weights_.compare_exchange_weak(old_val, desired_val))
+                    {
+                        desired_val = old_val + arg;
+                    }
+
+                    double old_variance = sum_of_weights_squared_.load();
+                    double desired_variance = old_variance + arg * arg;
+                    while (!sum_of_weights_squared_.compare_exchange_weak(old_variance, desired_variance))
+                    {
+                        desired_variance = old_variance + arg * arg;
+                    }
+                    // update the current object
+                    sum_of_weights_.store(desired_val);
+                    sum_of_weights_squared_.store(desired_variance);
+                    return *this;
+                }
+                // Increment by one.
+                thread_safe_withvariance &operator++()
+                {
+                    // use Josh's trick for summing doubles
+                    double old_val = sum_of_weights_.load();
+                    double desired_val = old_val + 1.;
+                    while (!sum_of_weights_.compare_exchange_weak(old_val, desired_val))
+                    {
+                        desired_val = old_val + 1.;
+                    }
+
+                    double old_variance = sum_of_weights_squared_.load();
+                    double desired_variance = old_variance + 1. * 1.;
+                    while (!sum_of_weights_squared_.compare_exchange_weak(old_variance, desired_variance))
+                    {
+                        desired_variance = old_variance + 1. * 1.;
+                    }
+                    // update the current object
+                    sum_of_weights_.store(desired_val);
+                    sum_of_weights_squared_.store(desired_variance);
+                    return *this;
+                }
                 // add a basic type to thread safe objects
                 template <class weightType>
-                thread_safe_withvariance &operator+=(const weight_type<weightType> &w) // weight_type should be boost::histogram::weight passed to fill
+                thread_safe_withvariance &operator+=(const weight_type<weightType> &w) 
                 {
                     // use Josh's trick for summing doubles
                     double old_val = sum_of_weights_.load();
@@ -125,12 +153,36 @@ namespace boost
                 }
 
             private:
-                super_t sum_of_weights_{};
-                super_t sum_of_weights_squared_{};
+                super_t sum_of_weights_ = super_t(static_cast<value_type>(0));
+                super_t sum_of_weights_squared_ = super_t(static_cast<value_type>(0));
             };
 
         } // namespace accumulators
     }     // namespace histogram
 } // namespace boost
+
+#ifndef BOOST_HISTOGRAM_DOXYGEN_INVOKED
+namespace std
+{
+    template <class T, class U>
+    struct common_type<boost::histogram::accumulators::thread_safe_withvariance<T>,
+                       boost::histogram::accumulators::thread_safe_withvariance<U>>
+    {
+        using type = boost::histogram::accumulators::thread_safe_withvariance<common_type_t<T, U>>;
+    };
+
+    template <class T, class U>
+    struct common_type<boost::histogram::accumulators::thread_safe_withvariance<T>, U>
+    {
+        using type = boost::histogram::accumulators::thread_safe_withvariance<common_type_t<T, U>>;
+    };
+
+    template <class T, class U>
+    struct common_type<T, boost::histogram::accumulators::thread_safe_withvariance<U>>
+    {
+        using type = boost::histogram::accumulators::thread_safe_withvariance<common_type_t<T, U>>;
+    };
+} // namespace std
+#endif
 
 #endif

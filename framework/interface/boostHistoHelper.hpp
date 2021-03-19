@@ -4,17 +4,19 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
+#include "boost/histogram/histogram.hpp"
 #include <boost/histogram.hpp>
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
-#include "thread_safe_doubles.hpp"
+// #include "thread_safe_doubles.hpp"
+#include "thread_safe_withvariance.hpp"
 #include <memory>
 #include <tuple>
 #include <utility>
 #include <chrono>
 
 // using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
-using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<double, boost::use_default,boost::use_default, std::allocator<double>>,std::allocator<boost::histogram::axis::variable<double, boost::use_default,boost::use_default, std::allocator<double>>>>,boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_doubles<double>,std::allocator<boost::histogram::accumulators::thread_safe_doubles<double>>>>>;
+using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<double, boost::use_default,boost::use_default, std::allocator<double>>,std::allocator<boost::histogram::axis::variable<double, boost::use_default,boost::use_default, std::allocator<double>>>>,boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_withvariance<double>,std::allocator<boost::histogram::accumulators::thread_safe_withvariance<double>>>>>;
 template <std::size_t Ncols, std::size_t Nweights, typename Bins>
 class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<Ncols, Nweights, Bins>>
 {
@@ -90,7 +92,7 @@ public:
       // first make nominal histogram
       std::cout << "creating nominal " << std::endl;
       auto start = std::chrono::steady_clock::now();
-      auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_doubles<double>>(), _v);
+      auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_withvariance<double>>(), _v);
       // decltype(htmp)::foo = 1;
       auto end = std::chrono::steady_clock::now();
       std::chrono::duration<double> elapsed_seconds = end - start;
@@ -113,7 +115,7 @@ public:
             continue;
          for (auto &var : groupOfVars)
          {
-            auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_doubles<double>>(), _v);
+            auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_withvariance<double>>(), _v);
             std::string histoname = _name + "_" + var;
             // std::cout << "histoname " << histoname << std::endl;
             auto it = hmap.insert(std::make_pair(histoname, htmp));
