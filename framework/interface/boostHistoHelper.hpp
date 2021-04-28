@@ -4,6 +4,7 @@
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 #include "ROOT/RDF/RInterface.hxx"
+#include "ROOT/TThreadExecutor.hxx"
 #include <boost/histogram.hpp>
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
@@ -65,55 +66,41 @@ public:
          _colsWithVariationsIdx.emplace_back(colIdx);
          ++colIdx;
       }
-
-      for (auto slot : ROOT::TSeqU(nSlots))
-      {
-         fHistos.emplace_back(std::make_shared<std::map<std::string, boost_histogram>>());
-         (void)slot;
-
-         std::map<std::string, boost_histogram> &hmap = *fHistos[slot];
-
-         std::string slotnum = "";
-         slotnum = slot > 0 ? std::to_string(slot) : "";
-         // first make nominal histogram
-         // std::cout << "creating nominal " << std::endl;
-         auto start = std::chrono::steady_clock::now();
-         auto htmp = boost::histogram::make_weighted_histogram(_v);
-         auto end = std::chrono::steady_clock::now();
-         std::chrono::duration<double> elapsed_seconds = end - start;
-         // std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-         // std::cout << "rank is " << htmp.rank() << std::endl;
-         auto it = hmap.insert(std::make_pair(_name, htmp));
-         // std::cout << "inserted nominal " << std::endl;
-         _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-         // std::cout << "nominal in vector" << std::endl;
-         //then check variations
-         for (auto &groupOfVars : _variationRules)
-         {
-            if (groupOfVars[0] == "")
-               continue;
-            for (auto &var : groupOfVars)
-            {
-               auto htmp = boost::histogram::make_weighted_histogram(_v);
-               std::string histoname = _name + "_" + var;
-               // std::cout << "histoname " << histoname << std::endl;
-               auto it = hmap.insert(std::make_pair(histoname, htmp));
-               _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-            }
-         }
-      }
    }
 
    boostHistoHelper(boostHistoHelper &&) = default;
    boostHistoHelper(const boostHistoHelper &) = delete;
    std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos[0]; }
-   void Initialize() {}
+   void Initialize()
+   {
+      std::cout << "initialize begin" << std::endl;
+      const unsigned int nSlots = std::max(1u, ROOT::GetThreadPoolSize());
+      if (nSlots > 1)
+      {
+         fHistos.resize(nSlots, nullptr);
+         auto &histos = fHistos;
+         auto createhist = [this, &histos](unsigned int slot) {
+            // decltype(*hmap[slot])::foo = 1;
+            histos[slot] = std::make_shared<std::map<std::string, boost_histogram>>();
+            std::map<std::string, boost_histogram> &hmap = *histos[slot];
+            auto htmp = boost::histogram::make_weighted_histogram(_v);
+            auto it = hmap.insert(std::make_pair(_name, htmp));
+            _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
+         };
+         ROOT::TThreadExecutor pool(nSlots);
+         std::vector<unsigned int> idxs(nSlots - 1);
+         std::iota(std::begin(idxs), std::end(idxs), 1);
+         pool.Foreach(createhist, idxs);
+      }
+      std::cout << "initialize end" << std::endl;
+   }
+
    void InitTask(TTreeReader *, unsigned int) {}
 
    template <typename BinsForOneAxis>
    void CreateAxis(BinsForOneAxis &b)
    {
-      auto axis_lambda = [&](auto &&...args) {return boost::histogram::axis::variable<>{args...}; };
+      auto axis_lambda = [&](auto &&...args) { return boost::histogram::axis::variable<>{args...}; };
       auto axis = std::apply(axis_lambda, b);
       _v.emplace_back(axis);
    }
