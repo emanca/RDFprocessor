@@ -12,13 +12,12 @@
 #include <utility>
 #include <chrono>
 
-using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
-
 template <std::size_t Ncols, std::size_t Nweights, typename Bins>
 class boostHistoHelper : public ROOT::Detail::RDF::RActionImpl<boostHistoHelper<Ncols, Nweights, Bins>>
 {
 
 public:
+   using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>;
    /// This type is a requirement for every helper.
    using Result_t = std::map<std::string, boost_histogram>;
 
@@ -51,22 +50,6 @@ public:
       for (auto &w : _weights_var)
          w.resize(Ncols + Nweights);
 
-      // set up the binning
-      // auto b1 = std::get<0>(bins);
-      // auto d1 = std::tuple_size<decltype(b1)>::value - 1;
-      // auto b2 = std::get<1>(bins);
-      // auto d2 = std::tuple_size<decltype(b2)>::value - 1;
-      // auto b3 = std::get<2>(bins);
-      // auto d3 = std::tuple_size<decltype(b3)>::value - 1;
-      // auto b4 = std::get<3>(bins);
-      // auto d4 = std::tuple_size<decltype(b4)>::value - 1;
-      // auto b5 = std::get<4>(bins);
-      // auto d5 = std::tuple_size<decltype(b5)>::value - 1;
-      // auto b6 = std::get<5>(bins);
-      // auto d6 = std::tuple_size<decltype(b6)>::value - 1;
-      // int nbins = d1 * d2 * d3 * d4 * d5 * d6;
-      // std::cout << d1 << " " << d2 << " " << d3 << " " << d4 << " " << d5 << " " << d6 << std::endl;
-      // std::cout << "number of bins is " << nbins << std::endl;
       construct_with_bins(bins);
       std::make_index_sequence<std::tuple_size<decltype(bins)>::value> idx;
 
@@ -93,17 +76,17 @@ public:
          std::string slotnum = "";
          slotnum = slot > 0 ? std::to_string(slot) : "";
          // first make nominal histogram
-         std::cout << "creating nominal " << std::endl;
+         // std::cout << "creating nominal " << std::endl;
          auto start = std::chrono::steady_clock::now();
          auto htmp = boost::histogram::make_weighted_histogram(_v);
          auto end = std::chrono::steady_clock::now();
          std::chrono::duration<double> elapsed_seconds = end - start;
-         std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-         std::cout << "rank is " << htmp.rank() << std::endl;
+         // std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+         // std::cout << "rank is " << htmp.rank() << std::endl;
          auto it = hmap.insert(std::make_pair(_name, htmp));
-         std::cout << "inserted nominal " << std::endl;
+         // std::cout << "inserted nominal " << std::endl;
          _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-         std::cout << "nominal in vector" << std::endl;
+         // std::cout << "nominal in vector" << std::endl;
          //then check variations
          for (auto &groupOfVars : _variationRules)
          {

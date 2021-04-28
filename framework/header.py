@@ -14,8 +14,8 @@ def getValueType(obj):
 bookingCode = """
 #include "DataFormat.h"
 
-ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>>
+ROOT::RDF::RResultPtr<std::map<std::string, {boost_histogram}>>
 BookIt{N}(RNode d, std::string name, {binsType} bins, const std::vector<std::string> &columns, std::vector<std::vector<std::string>> variationRules) {{
-    return Histogram<{template_args}>()(d, name, bins, columns, variationRules);
+    return Histogram<{boost_histogram},{template_args}>()(d, name, bins, columns, variationRules);
 }}
 """
