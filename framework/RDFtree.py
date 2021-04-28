@@ -85,62 +85,62 @@ class RDFtree:
             branchRDF = m.run(ROOT.RDF.AsRNode(branchRDF))
             self.variationsRules = m.getVariationRules()
 
-            tmp_th1 = m.getTH1()
-            tmp_th2 = m.getTH2()
-            tmp_th3 = m.getTH3()
+            # tmp_th1 = m.getTH1()
+            # tmp_th2 = m.getTH2()
+            # tmp_th3 = m.getTH3()
 
-            tmp_th1G = m.getGroupTH1()
-            tmp_th2G = m.getGroupTH2()
-            tmp_th3G = m.getGroupTH3()
-            tmp_thNG = m.getGroupTHN()    
+            # tmp_th1G = m.getGroupTH1()
+            # tmp_th2G = m.getGroupTH2()
+            # tmp_th3G = m.getGroupTH3()
+            # tmp_thNG = m.getGroupTHN()    
 
-            for obj in tmp_th1:
+            # for obj in tmp_th1:
                     
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
                 
-            for obj in tmp_th2:
+            # for obj in tmp_th2:
                     
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
-            for obj in tmp_th3:
+            # for obj in tmp_th3:
                     
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
-            for obj in tmp_th1G:
+            # for obj in tmp_th1G:
                     
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
-            for obj in tmp_th2G:
+            # for obj in tmp_th2G:
                     
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
-            for obj in tmp_th3G:
+            # for obj in tmp_th3G:
                     
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
                 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
-            for obj in tmp_thNG:
+            # for obj in tmp_thNG:
 
-                value_type = getValueType(obj)
+            #     value_type = getValueType(obj)
 
-                self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
+            #     self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(obj))
 
-            m.reset()
+            # m.reset()
 
         self.node[nodeToEnd] = branchRDF
 
-    def Histogram(self, columns, types, node, histoname, bins, variations={}):
+    def Histogram(self, columns, types, node, histoname, bins, sample="", variations={}):
 
         d = self.node[node]
         rules = self.variationsRules
@@ -148,6 +148,21 @@ class RDFtree:
 
         if not len(columns)==len(types): raise Exception('number of columns and types must match')
         nweights = len(columns) - len(bins)
+        Dsample = 1
+        if not sample=="": 
+            nweights = nweights-1
+            types.append('RVec<float>')
+            columns.append(sample)
+            # read column length
+            ROOT.ROOT.DisableImplicitMT()
+            dsample = ROOT.ROOT.RDataFrame(self.treeName, self.inputFile)
+            Dsample = int(dsample.Range(1).Mean('n'+sample).GetValue())
+            if not self.pretend: ROOT.ROOT.EnableImplicitMT(self.nthreads)
+        
+        if(Dsample==1):
+            boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>"
+        else:
+            boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum_vec<double, {Dsample}>, std::allocator<boost::histogram::accumulators::weighted_sum_vec<double, {Dsample}>>>>>".format(Dsample=Dsample)
 
         variations_vec = ROOT.vector(ROOT.vector('string'))()
         # reorder variations to follow column order
@@ -161,16 +176,15 @@ class RDFtree:
             else:
                 variations_vec.push_back(ROOT.vector('string')({""}))
 
+        # passing templated binning arguments to maximise performance
         binningCode = 'auto bins_{} = std::make_tuple('.format(histoname)
         for bin in bins: 
             binningCode+='std::make_tuple({}),'.format(', '.join(str(x) for x in bin))
         binningCode = ','.join(binningCode.split(',')[:-1])
         binningCode+=')'
-        # print(binningCode)
         ROOT.gInterpreter.ProcessLine(binningCode)
-
         templ = type(getattr(ROOT,"bins_{}".format(histoname))).__cpp_name__
-        # print(templ)
+
         #############################################################
         print("this is how I will make variations for this histogram")
         for icol, col in enumerate(columns):
@@ -180,7 +194,7 @@ class RDFtree:
             print('compiling')
             ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
             with open("helperbooker_{}.cpp".format(histoname), "w") as f:
-                code = bookingCode.format(binsType = templ, template_args="{},{},{},{}".format(len(bins),nweights,templ,', '.join(types)),N=histoname)
+                code = bookingCode.format(boost_histogram=boost_type, binsType = templ, template_args="{},{},{},{},{}".format(len(bins),nweights,Dsample,templ,', '.join(types)),N=histoname)
                 f.write(code)                                                                                                   
             ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "kO")                                                            
 
@@ -188,6 +202,7 @@ class RDFtree:
 
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
+
 
     def Snapshot(self, node, blist=[]):
 
@@ -266,13 +281,32 @@ class RDFtree:
                         map = obj.GetValue()
                         for name,h in map:
                             print(name)
-                            arr = ROOT.convert(h)
+                            print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start))
+                            print(type(h).__cpp_name__)
+                            arr = ROOT.convert[type(h).__cpp_name__](h)
+                            rank = ROOT.getRank[type(h).__cpp_name__](h)
+                            sizes=[]
+                            for i in range(rank):
+                                sizes.append(ROOT.getAxisSize[type(h).__cpp_name__](h,i))
+                            D = ROOT.getD[type(h).__cpp_name__](h)
+                            if not D==1: sizes.append(D)
+                            # get bin contents
                             counts = np.asarray(arr[0])
+                            counts = np.array(counts.reshape(tuple(sizes),order='F'),order='C')
+                            # get sum of squared weights
                             sumw = np.asarray(arr[1])
-                            dset = f.create_dataset('{}'.format(name), [counts.shape[0]], dtype=dtype)
+                            sumw = np.array(sumw.reshape(tuple(sizes),order='F'),order='C')
+                            edges=[]
+                            for i in range(rank):
+                                axis=ROOT.getAxisEdges[type(h).__cpp_name__](h,i)
+                                edges.append(np.asarray(axis))
+                            dset = f.create_dataset('{}'.format(name), counts.shape, dtype=dtype)
                             dset[...] = counts
-                            dset2 = f.create_dataset('{}_sumw2'.format(name), [counts.shape[0]], dtype=dtype)
+                            dset2 = f.create_dataset('{}_sumw2'.format(name), counts.shape, dtype=dtype)
                             dset2[...] = sumw
+                            for i,axis in enumerate(edges):
+                                dset3 = f.create_dataset('edges_{}'.format(i), axis.shape, dtype='float32')
+                                dset3[...] = axis
                     elif 'vector' in type(obj).__cpp_name__:
                         for h in obj:
                             nbins = h.GetNbinsX()*h.GetNbinsY() * h.GetNbinsZ()
