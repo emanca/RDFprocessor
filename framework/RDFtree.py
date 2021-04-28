@@ -10,8 +10,10 @@ ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Dat
 ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Utility.h"')
 
 class RDFtree:
-    def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False):
+    def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False, nthreads=48):
 
+        self.nthreads = nthreads
+        ROOT.ROOT.EnableImplicitMT(self.nthreads)
         self.outputDir = outputDir # output directory
         self.outputFile = outputFile
         self.inputFile = inputFile
