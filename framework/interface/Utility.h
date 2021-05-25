@@ -32,6 +32,7 @@ auto convert(const boost_histogram &h)
         }
         else
         {
+            Eigen::initParallel();
             std::vector<decltype(testVar)> vals;
             std::vector<decltype(testVar)> sumw2;
             for (auto &&x : indexed(h))
@@ -49,8 +50,8 @@ auto convert(const boost_histogram &h)
 
             Eigen::MatrixXd m;
             Eigen::MatrixXd m2;
-            m.resize(vals.size(), size);
-            m2.resize(vals.size(), size);
+            m.resize(vals.size(),size);
+            m2.resize(vals.size(),size);
             std::cout << m.size() << std::endl;
 
             for (int i = 0; i < vals.size(); i++)

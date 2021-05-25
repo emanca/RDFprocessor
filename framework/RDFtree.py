@@ -10,10 +10,8 @@ ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Dat
 ROOT.gInterpreter.ProcessLine('#include "../RDFprocessor/framework/interface/Utility.h"')
 
 class RDFtree:
-    def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False, nthreads=48):
+    def __init__(self, outputDir, outputFile, inputFile,treeName='Events', pretend=False):
 
-        self.nthreads = nthreads
-        ROOT.ROOT.EnableImplicitMT(self.nthreads)
         self.outputDir = outputDir # output directory
         self.outputFile = outputFile
         self.inputFile = inputFile
@@ -27,7 +25,7 @@ class RDFtree:
 
             ROOT.ROOT.DisableImplicitMT()
             self.d = RDF(self.treeName, self.inputFile)
-            self.d=self.d.Range(10)
+            self.d=self.d.Range(100)
         else:
 
             self.d = RDF(self.treeName, self.inputFile)
@@ -140,7 +138,7 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
-    def Histogram(self, columns, types, node, histoname, bins, sample="", variations={}):
+    def Histogram(self, columns, types, node, histoname, bins, sample=(), variations={}):
 
         d = self.node[node]
         rules = self.variationsRules
@@ -149,20 +147,27 @@ class RDFtree:
         if not len(columns)==len(types): raise Exception('number of columns and types must match')
         nweights = len(columns) - len(bins)
         Dsample = 1
-        if not sample=="": 
-            nweights = nweights-1
+        if not sample==(): 
             types.append('RVec<float>')
-            columns.append(sample)
+            columns.append(sample[0])
             # read column length
-            ROOT.ROOT.DisableImplicitMT()
-            dsample = ROOT.ROOT.RDataFrame(self.treeName, self.inputFile)
-            Dsample = int(dsample.Range(1).Mean('n'+sample).GetValue())
-            if not self.pretend: ROOT.ROOT.EnableImplicitMT(self.nthreads)
+            Dsample = int(sample[1])
         
-        if(Dsample==1):
-            boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>"
+        totalsize = 1
+        for b in bins:
+            totalsize*=(len(b)-1)
+        totalsize*=Dsample
+
+        if totalsize>1.e9:
+            if(Dsample==1):
+                boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>"
+            else:
+                boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_withvariance_sample<double, {Dsample}>, std::allocator<boost::histogram::accumulators::thread_safe_withvariance_sample<double, {Dsample}>>>>>".format(Dsample=Dsample)
         else:
-            boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum_vec<double, {Dsample}>, std::allocator<boost::histogram::accumulators::weighted_sum_vec<double, {Dsample}>>>>>".format(Dsample=Dsample)
+            if(Dsample==1):
+                boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>"
+            else:
+                boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum_vec<double, {Dsample}>, std::allocator<boost::histogram::accumulators::weighted_sum_vec<double, {Dsample}>>>>>".format(Dsample=Dsample)
 
         variations_vec = ROOT.vector(ROOT.vector('string'))()
         # reorder variations to follow column order
@@ -186,20 +191,19 @@ class RDFtree:
         templ = type(getattr(ROOT,"bins_{}".format(histoname))).__cpp_name__
 
         #############################################################
-        print("this is how I will make variations for this histogram")
-        for icol, col in enumerate(columns):
-            print(col, variations_vec[icol])
+        # print("this is how I will make variations for this histogram")
+        # for icol, col in enumerate(columns):
+        #     print(col, variations_vec[icol])
+        print("writing histogram ", histoname)
         #############################################################
         if "helperbooker_{}_cpp.so".format(histoname) not in ROOT.gSystem.GetLibraries():
             print('compiling')
             ROOT.gSystem.SetIncludePath("-I$ROOTSYS/include -I/scratchnvme/emanca/wproperties-analysis/templateMaker/interface -I/opt/boost/include")
             with open("helperbooker_{}.cpp".format(histoname), "w") as f:
-                code = bookingCode.format(boost_histogram=boost_type, binsType = templ, template_args="{},{},{},{},{}".format(len(bins),nweights,Dsample,templ,', '.join(types)),N=histoname)
+                code = bookingCode.format(boost_histogram=boost_type, binsType = templ, template_args="{},{},{},{},{},{}".format(len(bins),nweights,Dsample,totalsize,templ,', '.join(types)),N=histoname)
                 f.write(code)                                                                                                   
             ROOT.gSystem.CompileMacro("helperbooker_{}.cpp".format(histoname), "kO")                                                            
-
         histo = getattr(ROOT, "BookIt{}".format(histoname))(d, histoname, getattr(ROOT,"bins_{}".format(histoname)), columns,variations_vec) 
-
         value_type = getValueType(histo)
         self.objs[self.branchDir].append(ROOT.RDF.RResultPtr(value_type)(histo))
 
@@ -281,7 +285,6 @@ class RDFtree:
                         map = obj.GetValue()
                         for name,h in map:
                             print(name)
-                            print(self.entries.GetValue(), "events processed in "+"{:0.1f}".format(time.time()-self.start), "s", "rate", self.entries.GetValue()/(time.time()-self.start))
                             print(type(h).__cpp_name__)
                             arr = ROOT.convert[type(h).__cpp_name__](h)
                             rank = ROOT.getRank[type(h).__cpp_name__](h)
@@ -305,7 +308,7 @@ class RDFtree:
                             dset2 = f.create_dataset('{}_sumw2'.format(name), counts.shape, dtype=dtype)
                             dset2[...] = sumw
                             for i,axis in enumerate(edges):
-                                dset3 = f.create_dataset('edges_{}'.format(i), axis.shape, dtype='float32')
+                                dset3 = f.create_dataset('edges_{}_{}'.format(name,i), axis.shape, dtype='float32')
                                 dset3[...] = axis
                     elif 'vector' in type(obj).__cpp_name__:
                         for h in obj:
@@ -370,8 +373,8 @@ class RDFtree:
         branchRDF = ROOT.RDF.AsRNode(ROOT.RDF.AsRNode(branchRDF).Filter(evfilter, filtername))
         self.node[nodeToEnd] = branchRDF
 
-    def getCutFlowReport(self):
-        return self.d.Report()
+    def getCutFlowReport(self, node):
+        return self.node[node].Report()
 
     def displayColumn(self, node, columnList=[], nrows=100):
         print("careful: this is triggering the event loop!")

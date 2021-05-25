@@ -1,5 +1,5 @@
-#ifndef BOOSTHISTOHELPERWITHSAMPLE_H
-#define BOOSTHISTOHELPERWITHSAMPLE_H
+#ifndef BOOSTHISTOHELPERCONCWITHSAMPLE_H
+#define BOOSTHISTOHELPERCONCWITHSAMPLE_H
 
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
@@ -9,26 +9,26 @@
 #include <boost/format.hpp> // only needed for printing
 #include <boost/functional/hash.hpp>
 #include <boost/core/nvp.hpp>
-#include <boost/histogram/fwd.hpp> // for weighted_sum_vec<>
-#include "weighted_sum_vec.hpp"
+#include <boost/histogram/fwd.hpp> // for thread_safe_withvariance_sample<>
+#include "thread_safe_withvariance_sample.hpp"
 #include <memory>
 #include <tuple>
 #include <utility>
 #include <chrono>
 
 template <std::size_t Ncols, std::size_t Nweights, std::size_t Dsample, typename Bins>
-class boostHistoHelperWithSample : public ROOT::Detail::RDF::RActionImpl<boostHistoHelperWithSample<Ncols, Nweights, Dsample, Bins>>
+class boostHistoHelperConcWithSample : public ROOT::Detail::RDF::RActionImpl<boostHistoHelperConcWithSample<Ncols, Nweights, Dsample, Bins>>
 {
 
 public:
    // shortcut for complex boost histogram type
-   using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum_vec<double, Dsample>, std::allocator<boost::histogram::accumulators::weighted_sum_vec<double, Dsample>>>>>;
+   using boost_histogram = boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::thread_safe_withvariance_sample<double, Dsample>, std::allocator<boost::histogram::accumulators::thread_safe_withvariance_sample<double, Dsample>>>>>;
    // This type is a requirement for every RDF helper.
    using Result_t = std::map<std::string, boost_histogram>;
 
 private:
-   std::vector<std::shared_ptr<std::map<std::string, boost_histogram>>> fHistos; // one per data processing slot
-   std::vector<std::vector<boost_histogram *>> _histoPtrs;                       // one per data processing slot, pointing to the contents of fHistos (used for quicker access)
+   std::shared_ptr<std::map<std::string, boost_histogram>> fHistos;
+   std::vector<boost_histogram *> _histoPtrs;
    std::vector<std::vector<std::string>> _variationRules;                        // to keep track of the variations --> ordered as columns
    std::string _name;                                                            // name of histogram
    std::vector<boost::histogram::axis::variable<>> _v;                           // custom axes of histogram
@@ -39,7 +39,7 @@ private:
    std::vector<std::size_t> _colsWithVariationsIdx;                              // indices of the columns with a variation
 
 public:
-   boostHistoHelperWithSample(std::string name, std::vector<std::vector<std::string>> variationRules, Bins bins, unsigned int nSlots) : _histoPtrs{nSlots}, _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _samples{nSlots}, _name{name}, _variationRules{variationRules}
+   boostHistoHelperConcWithSample(std::string name, std::vector<std::vector<std::string>> variationRules, Bins bins, unsigned int nSlots) : _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _samples{nSlots}, _name{name}, _variationRules{variationRules}
    {
       for (auto &c : _columns)
          c.resize(Ncols);
@@ -64,32 +64,19 @@ public:
          ++colIdx;
       }
 
-      // set up a histogram per slot: this works very well for relatively small histograms
-      for (auto slot : ROOT::TSeqU(nSlots))
-      {
-         fHistos.emplace_back(std::make_shared<std::map<std::string, boost_histogram>>());
-         (void)slot;
-         std::map<std::string, boost_histogram> &hmap = *fHistos[slot];
-         std::string slotnum = "";
-         slotnum = slot > 0 ? std::to_string(slot) : "";
+      // set up one single histogram to be filled by all threads concurrently
+      fHistos = std::make_shared<std::map<std::string, boost_histogram>>();
+      std::map<std::string, boost_histogram> &hmap = *fHistos;
 
-         // first make nominal histogram
-         std::cout << "creating nominal " << std::endl;
-         auto start = std::chrono::steady_clock::now();
-         auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::weighted_sum_vec<double, Dsample>>(), _v);
-         auto end = std::chrono::steady_clock::now();
-         // std::chrono::duration<double> elapsed_seconds = end - start;
-         // std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-         // std::cout << "rank is " << htmp.rank() << std::endl;
-         auto it = hmap.insert(std::make_pair(_name, htmp));
-         // std::cout << "inserted nominal " << std::endl;
-         _histoPtrs[slot].emplace_back(&(it.first->second)); // address of the thing just inserted
-                                                             // std::cout << "nominal in vector" << std::endl;
-      }                                                      // end loop over slots
-   }                                                         // end constructor
+      // first make nominal histogram
+      std::cout << "creating nominal " << std::endl;
+      auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_withvariance_sample<double, Dsample>>(), _v);
+      auto it = hmap.insert(std::make_pair(_name, htmp));
+      _histoPtrs.emplace_back(&(it.first->second)); // address of the thing just inserted
+   }                                                      // end constructor
 
-   boostHistoHelperWithSample(boostHistoHelperWithSample &&) = default;
-   boostHistoHelperWithSample(const boostHistoHelperWithSample &) = delete;
+   boostHistoHelperConcWithSample(boostHistoHelperConcWithSample &&) = default;
+   boostHistoHelperConcWithSample(const boostHistoHelperConcWithSample &) = delete;
    std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos[0]; }
    void Initialize() {}
    void InitTask(TTreeReader *, unsigned int) {}
@@ -97,7 +84,8 @@ public:
    template <typename BinsForOneAxis>
    void CreateAxis(BinsForOneAxis &b)
    {
-      auto axis_lambda = [&](auto &&...args) { return boost::histogram::axis::variable<>{args...}; };
+      auto axis_lambda = [&](auto &&...args)
+      { return boost::histogram::axis::variable<>{args...}; };
       auto axis = std::apply(axis_lambda, b);
       _v.emplace_back(axis);
    }
@@ -140,7 +128,7 @@ public:
    template <typename... Ts>
    void Exec(unsigned int slot, const Ts &...cols)
    {
-      std::vector<boost_histogram *> &histos = _histoPtrs[slot];
+      std::vector<boost_histogram *> &histos = _histoPtrs;
 
       //extract columns, weights and variations from cols
       std::size_t i = 0;
@@ -150,28 +138,16 @@ public:
       auto &weights = _weights[slot];
       auto &samples = _samples[slot];
 
-      // for(auto i=0;i<weights.size();i++) std::cout<< i<<" "<<weights[i] << std::endl;
       float weight = std::accumulate(std::begin(weights), std::end(weights), 1.f, std::multiplies<float>());
       auto *h = histos[0];
       FillBoostHisto(*h, weight, columns, samples, std::make_index_sequence<Ncols>{});
    }
 
    void Finalize()
-   {
-      // std::cout << "in Finalize" << std::endl;
-      auto &res = *fHistos[0];
-      for (auto slot : ROOT::TSeqU(1, fHistos.size()))
-      {
-         auto &map = *fHistos[slot];
-         for (auto &x : res)
-         {
-            x.second += map.at(x.first);
-         }
-      }
-   }
+   {}
    std::string GetActionName()
    {
-      return "boostHistoHelperWithSample";
+      return "boostHistoHelperConcWithSample";
    }
 };
 
