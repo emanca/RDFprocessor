@@ -11,6 +11,12 @@ def getValueType(obj):
     value_type = class_name[open_br+1:close_br]
     return value_type
 
+def getD(obj):
+    class_name = type(obj).__cpp_name__
+    open_br, close_br = class_name.find('thread_safe_withvariance_sample<double,'), class_name.rfind('>')
+    value_type = class_name[open_br+39:close_br-6]
+    return int(value_type)
+
 bookingCode = """
 #include "DataFormat.h"
 

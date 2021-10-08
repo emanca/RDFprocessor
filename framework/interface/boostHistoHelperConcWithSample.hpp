@@ -29,14 +29,14 @@ public:
 private:
    std::shared_ptr<std::map<std::string, boost_histogram>> fHistos;
    std::vector<boost_histogram *> _histoPtrs;
-   std::vector<std::vector<std::string>> _variationRules;                        // to keep track of the variations --> ordered as columns
-   std::string _name;                                                            // name of histogram
-   std::vector<boost::histogram::axis::variable<>> _v;                           // custom axes of histogram
-   std::vector<std::vector<float>> _columns;                                     // one value per column per processing slot
-   std::vector<std::vector<float>> _weights;                                     // one value per weight per processing slot
-   std::vector<std::vector<double>> _samples;                                    // one sample per processing slot: must be double as per boost request
-   std::vector<std::vector<ROOT::RVec<float>>> _variations;                      // one RVec per column variation per processing slot
-   std::vector<std::size_t> _colsWithVariationsIdx;                              // indices of the columns with a variation
+   std::vector<std::vector<std::string>> _variationRules;   // to keep track of the variations --> ordered as columns
+   std::string _name;                                       // name of histogram
+   std::vector<boost::histogram::axis::variable<>> _v;      // custom axes of histogram
+   std::vector<std::vector<float>> _columns;                // one value per column per processing slot
+   std::vector<std::vector<float>> _weights;                // one value per weight per processing slot
+   std::vector<std::vector<double>> _samples;               // one sample per processing slot: must be double as per boost request
+   std::vector<std::vector<ROOT::RVec<float>>> _variations; // one RVec per column variation per processing slot
+   std::vector<std::size_t> _colsWithVariationsIdx;         // indices of the columns with a variation
 
 public:
    boostHistoHelperConcWithSample(std::string name, std::vector<std::vector<std::string>> variationRules, Bins bins, unsigned int nSlots) : _columns{nSlots}, _weights{nSlots}, _variations{nSlots}, _samples{nSlots}, _name{name}, _variationRules{variationRules}
@@ -73,11 +73,11 @@ public:
       auto htmp = boost::histogram::make_histogram_with(boost::histogram::dense_storage<boost::histogram::accumulators::thread_safe_withvariance_sample<double, Dsample>>(), _v);
       auto it = hmap.insert(std::make_pair(_name, htmp));
       _histoPtrs.emplace_back(&(it.first->second)); // address of the thing just inserted
-   }                                                      // end constructor
+   }                                                // end constructor
 
    boostHistoHelperConcWithSample(boostHistoHelperConcWithSample &&) = default;
    boostHistoHelperConcWithSample(const boostHistoHelperConcWithSample &) = delete;
-   std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos[0]; }
+   std::shared_ptr<std::map<std::string, boost_histogram>> GetResultPtr() const { return fHistos; }
    void Initialize() {}
    void InitTask(TTreeReader *, unsigned int) {}
 
@@ -144,7 +144,31 @@ public:
    }
 
    void Finalize()
-   {}
+   {
+      // auto &map = *fHistos;
+      // for (auto &y : map)
+      // {
+      //    for (auto &&x : boost::histogram::indexed(map.at(y.first)))
+      //    {
+      //       std::vector<std::array<double, Dsample>> vals;
+      //       std::vector<std::array<double, Dsample>> sumw2;
+      //       const auto &n = x->value(); //this is a std::array<atomic<double>,D>
+      //       const auto &w2 = x->variance();
+      //       std::array<double, Dsample> n_doubles;
+      //       std::array<double, Dsample> w2_doubles;
+      //       // n_doubles.resize(Dsample);
+      //       // w2_doubles.resize(Dsample);
+      //       for (unsigned int j = 0; j < Dsample; j++)
+      //       {
+      //          n_doubles[j] = n[j].load();
+      //          w2_doubles[j] = w2[j].load();
+      //          // std::cout << n_doubles[j] << std::endl;
+      //       }
+      //       vals.emplace_back(n_doubles);
+      //       sumw2.emplace_back(w2_doubles);
+      //    }
+      // }
+   }
    std::string GetActionName()
    {
       return "boostHistoHelperConcWithSample";

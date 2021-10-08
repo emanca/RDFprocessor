@@ -21,7 +21,7 @@ struct Histogram
 {
     ROOT::RDF::RResultPtr<std::map<std::string, boost_histogram>> operator()(RNode d, std::string name, Bins bins, const std::vector<std::string> &columns, std::vector<std::vector<std::string>> variationRules)
     {
-        if constexpr (totsize > 1.e9) // 1B bins threashold
+        if constexpr (totsize > 1.e6) // 100M bins threshold
         {
             if constexpr (Dsample == 1)
             {

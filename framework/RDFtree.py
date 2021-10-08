@@ -25,7 +25,7 @@ class RDFtree:
 
             ROOT.ROOT.DisableImplicitMT()
             self.d = RDF(self.treeName, self.inputFile)
-            self.d=self.d.Range(100)
+            self.d=self.d.Range(1000)
         else:
 
             self.d = RDF(self.treeName, self.inputFile)
@@ -158,7 +158,7 @@ class RDFtree:
             totalsize*=(len(b)-1)
         totalsize*=Dsample
 
-        if totalsize>1.e9:
+        if totalsize>1.e6:
             if(Dsample==1):
                 boost_type = "boost::histogram::histogram<std::vector<boost::histogram::axis::variable<>>, boost::histogram::storage_adaptor<std::vector<boost::histogram::accumulators::weighted_sum<>, std::allocator<boost::histogram::accumulators::weighted_sum<>>>>>"
             else:
@@ -286,13 +286,19 @@ class RDFtree:
                         for name,h in map:
                             print(name)
                             print(type(h).__cpp_name__)
-                            arr = ROOT.convert[type(h).__cpp_name__](h)
+                            if "boost::histogram::accumulators::thread_safe" in type(h).__cpp_name__:
+                                D = getD(h)
+                                arr = ROOT.convertAtomics[type(h).__cpp_name__,D](h)
+                            else:
+                                arr = ROOT.convert[type(h).__cpp_name__](h)
+                                D = ROOT.getD[type(h).__cpp_name__](h)
                             rank = ROOT.getRank[type(h).__cpp_name__](h)
                             sizes=[]
                             for i in range(rank):
                                 sizes.append(ROOT.getAxisSize[type(h).__cpp_name__](h,i))
-                            D = ROOT.getD[type(h).__cpp_name__](h)
+                            
                             if not D==1: sizes.append(D)
+                            
                             # get bin contents
                             counts = np.asarray(arr[0])
                             counts = np.array(counts.reshape(tuple(sizes),order='F'),order='C')
@@ -340,25 +346,25 @@ class RDFtree:
         os.chdir("..")
 
     def getObjects(self):
-
         return self.objs
 
     def saveGraph(self):
 
-        print(self.graph)
+        ROOT.RDF.SaveGraph(self.node['input'],"graph.pdf")
+        # print(self.graph)
 
-        from graphviz import Digraph
+        # from graphviz import Digraph
 
-        dot = Digraph(name='my analysis', filename = 'graph.pdf')
+        # dot = Digraph(name='my analysis', filename = 'graph.pdf')
 
-        for node, nodelist in self.graph.items():
+        # for node, nodelist in self.graph.items():
 
-            dot.node(node, node)
-            for n in nodelist:
-                dot.node(n, n)
-                dot.edge(node,n)
+        #     dot.node(node, node)
+        #     for n in nodelist:
+        #         dot.node(n, n)
+        #         dot.edge(node,n)
 
-        dot.render()  
+        # dot.render()  
 
     def EventFilter(self,nodeToStart, nodeToEnd, evfilter, filtername):
         if not nodeToEnd in self.objs:
@@ -376,7 +382,7 @@ class RDFtree:
     def getCutFlowReport(self, node):
         return self.node[node].Report()
 
-    def displayColumn(self, node, columnList=[], nrows=100):
+    def displayColumn(self, node, columnList=[], nrows=1000000):
         print("careful: this is triggering the event loop!")
         if node not in self.node:
             print("Node {} does not exist! Skipping display!".format(node))

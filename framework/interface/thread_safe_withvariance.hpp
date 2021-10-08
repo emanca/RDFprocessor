@@ -77,9 +77,7 @@ namespace boost
                     {
                         desired_variance = old_variance + arg * arg;
                     }
-                    // update the current object
-                    sum_of_weights_.store(desired_val);
-                    sum_of_weights_squared_.store(desired_variance);
+                    
                     return *this;
                 }
                 // Increment by one.

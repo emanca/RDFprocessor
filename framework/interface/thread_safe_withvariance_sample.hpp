@@ -38,16 +38,16 @@ namespace boost
                 // copy constructor
                 thread_safe_withvariance_sample(const thread_safe_withvariance_sample &o) noexcept
                 {
-                    for (auto i = 0; i < D; i++)
+                    for (std::size_t i = 0; i < D; i++)
                     {
-                        sum_of_weights_[i]=(*(o.value())[i].load());
-                        sum_of_weights_squared_[i]=(*(o.variance())[i].load());
+                        sum_of_weights_[i].store(o.value()[i].load());
+                        sum_of_weights_squared_[i].store(o.variance()[i].load());
                     }
                 }
 
                 thread_safe_withvariance_sample &operator=(const thread_safe_withvariance_sample &o) noexcept
                 {
-                    for (auto i = 0; i < D; i++)
+                    for (std::size_t i = 0; i < D; i++)
                     {
                         sum_of_weights_[i].store(o.value()[i].load());
                         sum_of_weights_squared_[i].store(o.variance()[i].load());
@@ -56,14 +56,17 @@ namespace boost
                 }
                 // initialize to value and variance
                 thread_safe_withvariance_sample(vec_value_type value, vec_value_type variance) : sum_of_weights_(value), sum_of_weights_squared_(variance) {}
-                // // initialize to weight type
-                // template <class weightType>
-                // thread_safe_withvariance_sample &operator=(const weight_type<weightType> &w)
-                // {
-                //     sum_of_weights_.store(w.value.load());
-                //     sum_of_weights_squared_.store(w.variance.load());
-                //     return *this;
-                // }
+                // initialize to weight type
+                template <class weightType>
+                thread_safe_withvariance_sample &operator=(const weight_type<weightType> &w)
+                {
+                    for (std::size_t i = 0; i < D; i++)
+                    {
+                        sum_of_weights_[i].store(w.value);
+                        sum_of_weights_squared_[i].store(w.variance);
+                    }
+                    return *this;
+                }
                 // add two thread safe objects
                 thread_safe_withvariance_sample &operator+=(const thread_safe_withvariance_sample &arg)
                 {
@@ -102,22 +105,19 @@ namespace boost
                     for (unsigned int i = 0; i < sum_of_weights_.size(); i++)
                     {
                         // use Josh's trick for summing doubles
-                        double old_val = sum_of_weights_.load();
+                        double old_val = sum_of_weights_[i].load();
                         double desired_val = old_val + 1.;
                         while (!sum_of_weights_.compare_exchange_weak(old_val, desired_val))
                         {
                             desired_val = old_val + 1.;
                         }
 
-                        double old_variance = sum_of_weights_squared_.load();
+                        double old_variance = sum_of_weights_squared_[i].load();
                         double desired_variance = old_variance + 1. * 1.;
                         while (!sum_of_weights_squared_.compare_exchange_weak(old_variance, desired_variance))
                         {
                             desired_variance = old_variance + 1. * 1.;
                         }
-                        // update the current object
-                        sum_of_weights_.store(desired_val);
-                        sum_of_weights_squared_.store(desired_variance);
                     }
                     return *this;
                 }
@@ -145,15 +145,39 @@ namespace boost
                     return *this;
                 }
 
-                
+                /// Insert sample x.
+                void operator()(vec_value_type x) { operator()(weight(1), x); }
+
+                /// Insert sample x with weight w.
+                void operator()(const weight_type<value_type> &w, vec_value_type x)
+                {
+                    for (unsigned int i = 0; i < sum_of_weights_.size(); i++)
+                    {
+                        // use Josh's trick for summing doubles
+                        double old_val = sum_of_weights_[i].load();
+                        double desired_val = old_val + (w.value * x[i]);
+                        while (!sum_of_weights_[i].compare_exchange_weak(old_val, desired_val))
+                        {
+                            desired_val = old_val + (w.value * x[i]);
+                        }
+
+                        double old_variance = sum_of_weights_squared_[i].load();
+                        double desired_variance = old_variance + (w.value * w.value * x[i] * x[i]);
+                        while (!sum_of_weights_squared_[i].compare_exchange_weak(old_variance, desired_variance))
+                        {
+                            desired_variance = old_variance + (w.value * w.value * x[i] * x[i]);
+                        }
+                    }
+                }
+
                 /// Return value of the sum.
-                std::unique_ptr<std::array<super_t, D>> value() const noexcept { return sum_of_weights_; }
+                const std::array<super_t, D> &value() const noexcept { return sum_of_weights_; }
 
                 /// Return estimated variance of the sum.
-                std::unique_ptr<std::array<super_t, D>> variance() const noexcept { return sum_of_weights_squared_; }
+                const std::array<super_t, D> &variance() const noexcept { return sum_of_weights_squared_; }
 
                 // lossy conversion must be explicit
-                explicit operator const_reference() const { return sum_of_weights_; }
+                // explicit operator const_reference() const { return sum_of_weights_; }
 
             private:
                 std::array<super_t, D> sum_of_weights_ = {};
