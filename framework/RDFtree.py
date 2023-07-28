@@ -46,15 +46,15 @@ class RDFtree:
 
         self.node[nodeToEnd] = branchRDF
 
-    def Histogram(self, node, name, cols, axes, tensor_axes=''):
+    def Histogram(self, node, name, cols, axes, tensor_axes='', storage = hist.storage.Weight()):
 
         d = self.node[node]
         self.branchDir = node
 
         if tensor_axes=='':
-            self.objs.append(d.HistoBoost(name, axes, cols))
+            self.objs.append(d.HistoBoost(name, axes, cols,storage=storage))
         else:
-            self.objs.append(d.HistoBoost(name, axes, cols, tensor_axes=tensor_axes))
+            self.objs.append(d.HistoBoost(name, axes, cols, tensor_axes=tensor_axes,storage=storage))
 
     def EventCount(self,node, column):
 
